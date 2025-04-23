@@ -25,7 +25,7 @@ ENTRYPOINT ["/app/.venv/bin/fastapi"]
 
 # 11. 컨테이너 시작 시 실행 파일에 전달될 기본 인자 정의
 #     $PORT 환경 변수가 이 단계에서 값으로 치환됩니다.
-CMD ["run", "app/main.py", "--host", "0.0.0.0", "--port", "$PORT"]
+CMD ["run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]
 
 # 12. (정보성) 컨테이너가 리스닝하는 포트 명시 (선택 사항)
 # EXPOSE 8080 # Cloud Run 기본 PORT가 8080인 경우 사용 가능
