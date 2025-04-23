@@ -1,0 +1,16 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+env/
+venv/
+dist/
+*.egg-info
+.pytest_cache
+.mypy_cache
+.vscode
+.idea
+# Any other large files or directories not needed in the container
+# .env # If you are injecting environment variables another way in production

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monitor {{ monitor_id }} Display</title> <!-- 모니터 ID 표시 -->
+    <meta http-equiv="refresh" content="10"> <!-- 예: 10초마다 페이지 자동 새로고침 -->
+    <style>
+        /* 스타일 추가 (선택 사항) */
+        body {
+            margin: 0;
+            padding: 20px; /* 여백 추가 */
+            overflow: hidden; /* 내용 넘칠 경우 스크롤바 숨김 */
+            background-color: black; /* 배경 검정 */
+            color: white; /* 글자 하얀색 */
+            font-family: sans-serif;
+            text-align: center; /* 가운데 정렬 */
+        }
+        h1 {
+            color: yellow; /* 제목 색상 */
+        }
+        p {
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <!-- FastAPI에서 렌더링된 HTML 콘텐츠가 삽입될 부분 -->
+    {{ html_content | safe }}
+
+    <!-- 선택 사항: 현재 모니터 ID 표시 (디버깅용) -->
+    <!-- <div style="position: fixed; bottom: 10px; left: 10px; font-size: 0.8em; color: gray;">Monitor ID: {{ monitor_id }}</div> -->
+</body>
+</html>

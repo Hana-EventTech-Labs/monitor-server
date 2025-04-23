@@ -1,0 +1,10 @@
+[project]
+name = "tablet-monitor"
+version = "0.1.0"
+description = "tablet to monitor event"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiomysql>=0.2.0",
+    "fastapi[standard]>=0.115.12",
+]
