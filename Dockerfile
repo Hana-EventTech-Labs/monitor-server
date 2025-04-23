@@ -10,7 +10,10 @@ COPY . /app
 # 4. 작업 디렉터리 설정
 WORKDIR /app
 
-# 5. 애플리케이션 의존성 설치 및 가상 환경 생성
+# 5. 기본 사용자 환경 변수 설정 (pymysql 문제 해결)
+ENV USERNAME=appuser
+
+# 6. 애플리케이션 의존성 설치 및 가상 환경 생성
 RUN uv sync --frozen --no-cache
 
 # --- 보안 및 실행 권한 문제 해결을 위한 추가 단계 ---
