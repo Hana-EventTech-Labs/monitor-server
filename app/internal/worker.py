@@ -39,7 +39,13 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
                 last_heartbeat_time = now
 
             # DB에서 처리할 항목 조회 (state=0, 5분 경과)
-            items_to_process = await get_items_to_process(threshold_time)
+            try:
+                logger.info(f"Fetching items with threshold_time: {threshold_time}")
+                items_to_process = await get_items_to_process(threshold_time)
+                logger.info(f"Successfully fetched items. Found {len(items_to_process) if items_to_process else 0} items.")
+            except Exception as e:
+                logger.error(f"Error fetching items to process: {e}")
+                items_to_process = []
 
             if items_to_process:
                 logger.info(f"Found {len(items_to_process)} items to process")

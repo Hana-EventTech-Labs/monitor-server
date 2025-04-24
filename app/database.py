@@ -85,7 +85,7 @@ async def get_items_to_process(threshold_time: datetime.datetime):
         conn = await get_db_connection()
         async with conn.cursor() as cur:
             await cur.execute(f"""
-                SELECT no, text, adr, update_time -- adr을 조회해도 되지만 worker에서 초기엔 NULL임을 예상
+                SELECT no, text, adr, update_time -- update_time 컬럼 추가
                 FROM {settings.ITEMS_TABLE_NAME}
                 WHERE state = 0 AND update_time < %s
                 ORDER BY update_time ASC
