@@ -35,7 +35,7 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
 
             # 주기적으로 워커가 살아있음을 알리는 하트비트 로그 (1분마다)
             if (now - last_heartbeat_time).total_seconds() >= 60:
-                logger.info(f"Worker heartbeat: Active for {check_count} checks, processed {total_items_processed} items so far")
+                logger.info(f"Worker heartbeat: Active for {check_count} checks, processed {total_items_processed} items so far {now}, threshold_time: {threshold_time}")
                 last_heartbeat_time = now
 
             # DB에서 처리할 항목 조회 (state=0, 5분 경과)
