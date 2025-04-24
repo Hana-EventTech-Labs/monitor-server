@@ -58,7 +58,7 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
                 current_monitor_id = str((monitor_index % num_monitors) + 1)
                 monitor_index = (monitor_index + 1) % num_monitors # 다음 인덱스로 이동
 
-                logger.info(f"Processing item '{item_no}' and assigning to monitor {current_monitor_id}")
+                logger.info(f"Processing item '{item_no}(update_time: {item['update_time']})' and assigning to monitor {current_monitor_id}")
 
                 try:
                     # 데이터 처리 완료 및 모니터 ID 할당 상태로 DB 업데이트
