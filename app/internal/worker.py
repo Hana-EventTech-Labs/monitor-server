@@ -51,6 +51,7 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
             # 조회된 각 항목에 대해 순환적으로 모니터 ID 할당 및 DB 업데이트
             for item in items_to_process:
                 item_no = item["no"]
+                item_update_time = item["update_time"]
                 item_text = item["text"] # text는 여기서 직접 사용되진 않지만 조회 결과에 포함됨
 
                 # 다음 모니터 ID 선택 (순환)
@@ -58,7 +59,7 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
                 current_monitor_id = str((monitor_index % num_monitors) + 1)
                 monitor_index = (monitor_index + 1) % num_monitors # 다음 인덱스로 이동
 
-                logger.info(f"Processing item '{item_no}(update_time: {item['update_time']})' and assigning to monitor {current_monitor_id}")
+                logger.info(f"Processing item '{item_no}' (update_time: {item_update_time}) and assigning to monitor {current_monitor_id}")
 
                 try:
                     # 데이터 처리 완료 및 모니터 ID 할당 상태로 DB 업데이트
