@@ -38,8 +38,8 @@ async def display_for_monitor(monitor_id: int, request: Request): # monitor_idë¥
              <html>
              <head><title>Monitor {monitor_id} Display</title></head>
              <body>
-                 <h1>Order: {str(item['no'])}</h1>
-                 <p>{item['text']}</p>
+                 <h1>{item['text']}</h1>
+                 <p>Order: {str(item['no'])}</p>
                  <p>Processed at: {item['get_time'].isoformat()}</p>
                  <p>Displayed for Monitor {monitor_id}</p>
              </body>
