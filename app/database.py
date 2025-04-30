@@ -159,3 +159,25 @@ async def get_all_items_db():
         raise
      finally:
         if conn: await DB_POOL.release(conn)
+
+# --- get_latest_two_processed_items_by_monitor_id 함수 추가 ---
+async def get_latest_two_processed_items_by_monitor_id(monitor_id: str):
+    """특정 모니터 ID에 할당된 state=1인 최신 데이터 2개를 조회합니다."""
+    conn = None
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute(f"""
+                SELECT no, text, update_time, get_time, adr, state
+                FROM {settings.ITEMS_TABLE_NAME}
+                WHERE state = 1 AND adr = %s
+                ORDER BY get_time DESC
+                LIMIT 2
+            """, (monitor_id,))
+            items = await cur.fetchall()
+            return items # 결과가 없으면 빈 리스트 반환
+    except Exception as e:
+        logger.error(f"Error fetching latest two items for monitor {monitor_id}: {e}")
+        raise
+    finally:
+        if conn: await DB_POOL.release(conn)
