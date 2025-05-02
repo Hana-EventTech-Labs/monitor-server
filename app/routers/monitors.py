@@ -3,10 +3,13 @@ import logging
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id # 새 DB 함수 임포트
+from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue # 새 DB 함수 임포트
 from ..core.config import settings # settings 임포트
 import json
 import asyncio
+import time
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,14 @@ router = APIRouter(
     tags=["monitors"],
 )
 
+# 모니터별 현재 표시 중인 항목과 큐를 저장하는 전역 변수
+MONITOR_QUEUES: Dict[str, List[dict]] = {}  # 모니터별 표시할 항목 큐
+CURRENT_ITEMS: Dict[str, Optional[dict]] = {}  # 모니터별 현재 표시 중인 항목
+DISPLAY_TIMES: Dict[str, float] = {}  # 모니터별 항목 표시 시작 시간
+
+# 항목 표시 시간(초)
+ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
+
 @router.get("/{monitor_id}/", response_class=HTMLResponse)
 async def display_for_monitor(monitor_id: int, request: Request): # monitor_id를 int로 받음
     """
@@ -29,102 +40,107 @@ async def display_for_monitor(monitor_id: int, request: Request): # monitor_id�
          raise HTTPException(status_code=404, detail=f"Monitor ID {monitor_id} not found. Valid IDs are 1 to {settings.MONITOR_COUNT}.")
 
     try:
-        html_content = "<html><body><h1>Waiting for content...</h1></body></html>" # 기본 내용
-        
-        # 모니터에 최신 항목만 표시
-        item = await get_latest_processed_item_by_monitor_id(str(monitor_id))
-        
-        if item:
-            # HTML 컨텐츠 작성
-            html_content = """
-            <html>
-            <head>
-                <title>Monitor Display</title>
-                <style>
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        background-color: #ffffff;
-                        color: #000000;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                    }
-                    .container {
-                        width: 80%;
-                        padding: 40px;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        background-color: #ffffff;
-                        overflow: hidden;
-                        box-sizing: border-box;
-                        text-align: center;
-                    }
-                    h1 { 
-                        font-size: 4rem; 
-                        margin: 0 0 30px 0;
-                        color: #000000;
-                    }
-                    p { 
-                        margin: 5px 0; 
-                        font-size: 1.5rem;
-                        color: #555555;
-                    }
-                    .monitor-info {
-                        position: fixed;
-                        bottom: 10px;
-                        right: 10px;
-                        font-size: 1rem;
-                        color: #999999;
-                    }
-                </style>
-            </head>
-            <body>
-            <div class="container">
-            """
-            
-            # 최신 항목만 표시
-            html_content += f"""
-                <h1>{item['text']}</h1>
-                <p>Order: {str(item['no'])}</p>
-                <p>Processed at: {item['get_time'].isoformat()}</p>
-            </div>
-            <div class="monitor-info">Monitor {monitor_id}</div>
-            </body>
-            </html>
-            """
-        else:
-            logger.info(f"No item found for monitor {monitor_id} yet.")
-
-        # 템플릿을 사용하여 HTML 렌더링
+        # 템플릿을 바로 사용하여 HTML 렌더링
         return templates.TemplateResponse(
-            "display.html", # 중앙 서버의 템플릿 사용
-            {"request": request, "html_content": html_content, "monitor_id": monitor_id} # 템플릿에 monitor_id 전달 가능
+            "display.html", 
+            {"request": request, "monitor_id": monitor_id}
         )
-
     except Exception as e:
          logger.error(f"Error rendering monitor display for {monitor_id}: {e}")
          # 실제 에러 메시지를 클라이언트에 노출하지 않도록 주의
          raise HTTPException(status_code=500, detail="Internal Server Error while fetching data")
 
+async def update_monitor_queue(monitor_id: str):
+    """모니터의 항목 큐를 업데이트합니다"""
+    try:
+        # DB에서 모니터에 할당된 항목 가져오기
+        items = await get_assigned_items_queue(monitor_id, limit=20)  # 최대 20개까지 가져옴
+        
+        if items:
+            MONITOR_QUEUES[monitor_id] = items
+            logger.info(f"Updated queue for monitor {monitor_id} with {len(items)} items")
+        else:
+            MONITOR_QUEUES[monitor_id] = []
+            logger.info(f"No items found for monitor {monitor_id}")
+    except Exception as e:
+        logger.error(f"Error updating queue for monitor {monitor_id}: {e}")
+
+async def get_next_item_for_monitor(monitor_id: str) -> Optional[dict]:
+    """모니터의 큐에서 다음 항목을 가져옵니다"""
+    
+    # 큐가 없거나 비어있으면 업데이트
+    if monitor_id not in MONITOR_QUEUES or not MONITOR_QUEUES[monitor_id]:
+        await update_monitor_queue(monitor_id)
+    
+    # 큐에 항목이 있으면 첫 번째 항목 반환
+    queue = MONITOR_QUEUES.get(monitor_id, [])
+    if queue:
+        return queue[0]  # 첫 번째 항목 반환 (아직 제거하지 않음)
+    return None
+
+async def advance_monitor_queue(monitor_id: str):
+    """모니터의 큐에서 현재 항목을 제거하고 다음 항목으로 이동합니다"""
+    if monitor_id in MONITOR_QUEUES and MONITOR_QUEUES[monitor_id]:
+        MONITOR_QUEUES[monitor_id].pop(0)  # 첫 번째 항목 제거
+        logger.info(f"Advanced queue for monitor {monitor_id}, {len(MONITOR_QUEUES[monitor_id])} items left")
+        
+        # 큐가 비었으면 다시 로드
+        if not MONITOR_QUEUES[monitor_id]:
+            await update_monitor_queue(monitor_id)
+
 @router.get("/{monitor_id}/stream")
 async def stream_monitor_updates(monitor_id: int):
     """모니터 데이터의 실시간 업데이트를 위한 SSE 스트림"""
+    monitor_id_str = str(monitor_id)
+    
+    # 모니터 큐 초기화
+    if monitor_id_str not in MONITOR_QUEUES:
+        await update_monitor_queue(monitor_id_str)
     
     async def event_generator():
-        last_item = None
         while True:
-            # 항상 최신 항목 하나만 표시
-            item = await get_latest_processed_item_by_monitor_id(str(monitor_id))
-            if item and item != last_item:
-                yield f"data: {json.dumps(item, default=str)}\n\n"
-                last_item = item
-                    
-            await asyncio.sleep(1)  # 1초 간격으로 확인
+            current_time = time.time()
+            
+            # 현재 항목이 지정된 시간을 초과했는지 확인
+            if (monitor_id_str in CURRENT_ITEMS and 
+                monitor_id_str in DISPLAY_TIMES and 
+                current_time - DISPLAY_TIMES[monitor_id_str] >= ITEM_DISPLAY_DURATION):
+                
+                # 다음 항목으로 이동
+                await advance_monitor_queue(monitor_id_str)
+                CURRENT_ITEMS[monitor_id_str] = None
+            
+            # 표시할 항목이 없으면 다음 항목 가져오기
+            if monitor_id_str not in CURRENT_ITEMS or CURRENT_ITEMS[monitor_id_str] is None:
+                next_item = await get_next_item_for_monitor(monitor_id_str)
+                
+                if next_item:
+                    CURRENT_ITEMS[monitor_id_str] = next_item
+                    DISPLAY_TIMES[monitor_id_str] = current_time
+                    logger.info(f"Now displaying item {next_item['no']} on monitor {monitor_id_str}")
+            
+            # SSE 이벤트로 현재 항목 전송
+            current_item = CURRENT_ITEMS.get(monitor_id_str)
+            
+            if current_item:
+                # 남은 표시 시간 계산
+                elapsed_time = current_time - DISPLAY_TIMES.get(monitor_id_str, current_time)
+                remaining_time = max(0, ITEM_DISPLAY_DURATION - elapsed_time)
+                
+                response_data = {
+                    "item": current_item,
+                    "remaining_time": remaining_time,
+                    "queue_length": len(MONITOR_QUEUES.get(monitor_id_str, []))
+                }
+            else:
+                response_data = {
+                    "item": None,
+                    "remaining_time": 0,
+                    "queue_length": len(MONITOR_QUEUES.get(monitor_id_str, []))
+                }
+                
+            yield f"data: {json.dumps(response_data, default=str)}\n\n"
+            await asyncio.sleep(1)  # 1초 간격으로 업데이트
     
     return StreamingResponse(
         event_generator(),
