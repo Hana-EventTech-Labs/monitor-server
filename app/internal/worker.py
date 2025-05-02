@@ -30,7 +30,10 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
     while True:
         try:
             check_count += 1
-            now = datetime.datetime.now() + datetime.timedelta(hours=9)
+            if settings.SERVER_TIMEZONE == "Asia/Seoul":
+                now = datetime.datetime.now()
+            else:
+                now = datetime.datetime.now() + datetime.timedelta(hours=9)
             threshold_time = now - datetime.timedelta(minutes=settings.OLD_DATA_THRESHOLD_MINUTES)
 
             # 주기적으로 워커가 살아있음을 알리는 하트비트 로그 (1분마다)

@@ -12,6 +12,8 @@ class Settings:
 
     ITEMS_TABLE_NAME: str = os.getenv("ITEMS_TABLE_NAME", "event")
 
+    SERVER_TIMEZONE: str = os.getenv("SERVER_TIMEZONE", "Asia/Seoul")
+
     CHECK_INTERVAL_SECONDS: int = int(os.getenv("CHECK_INTERVAL_SECONDS", "10"))
     OLD_DATA_THRESHOLD_MINUTES: int = int(os.getenv("OLD_DATA_THRESHOLD_MINUTES", "5"))
 
