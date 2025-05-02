@@ -1,10 +1,12 @@
 # app/routers/monitors.py
 import logging
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id # 새 DB 함수 임포트
 from ..core.config import settings # settings 임포트
+import json
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -157,3 +159,36 @@ async def display_for_monitor(monitor_id: int, request: Request): # monitor_id�
          logger.error(f"Error rendering monitor display for {monitor_id}: {e}")
          # 실제 에러 메시지를 클라이언트에 노출하지 않도록 주의
          raise HTTPException(status_code=500, detail="Internal Server Error while fetching data")
+
+@router.get("/{monitor_id}/stream")
+async def stream_monitor_updates(monitor_id: int):
+    """모니터 데이터의 실시간 업데이트를 위한 SSE 스트림"""
+    
+    async def event_generator():
+        last_item = None
+        while True:
+            # 모니터가 1개인 경우
+            if settings.MONITOR_COUNT == 1:
+                items = await get_latest_two_processed_items_by_monitor_id(str(monitor_id))
+                if items and len(items) > 0:
+                    current_item = {
+                        "current": items[0],
+                        "previous": items[1] if len(items) > 1 else None
+                    }
+                    
+                    if current_item != last_item:
+                        yield f"data: {json.dumps(current_item, default=str)}\n\n"
+                        last_item = current_item
+            else:
+                # 일반 모니터 (단일 항목 표시)
+                item = await get_latest_processed_item_by_monitor_id(str(monitor_id))
+                if item and item != last_item:
+                    yield f"data: {json.dumps(item, default=str)}\n\n"
+                    last_item = item
+                    
+            await asyncio.sleep(1)  # 1초 간격으로 확인
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
