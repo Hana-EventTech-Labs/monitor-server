@@ -1,12 +1,33 @@
 import aiomysql
 import logging
 import datetime
+import re
 from .core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # 연결 풀 변수
 DB_POOL = None
+
+# 테이블 이름 안전성 검증 함수 추가
+def validate_table_name(table_name: str) -> bool:
+    """
+    SQL 인젝션 방지를 위해 테이블 이름이 안전한지 검증합니다.
+    알파벳, 숫자, 언더스코어만 허용합니다.
+    """
+    pattern = re.compile(r'^[a-zA-Z0-9_]+$')
+    return bool(pattern.match(table_name))
+
+# 테이블 이름 가져오는 함수 추가
+def get_safe_table_name() -> str:
+    """
+    설정에서 안전한 테이블 이름을 가져옵니다.
+    테이블 이름이 안전하지 않으면 예외를 발생시킵니다.
+    """
+    table_name = settings.ITEMS_TABLE_NAME
+    if not validate_table_name(table_name):
+        raise ValueError(f"테이블 이름 '{table_name}'은(는) 안전하지 않습니다. 알파벳, 숫자, 언더스코어만 허용됩니다.")
+    return table_name
 
 # ... (create_db_pool, close_db_pool, get_db_connection 함수는 동일) ...
 async def create_db_pool():
@@ -53,13 +74,18 @@ async def insert_item_db(text: str):
     """새로운 데이터를 DB에 추가합니다 (no 자동 생성, adr 나중, update_time 트리거)."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            # no 컬럼을 INSERT 목록에서 제거
-            await cur.execute(f"""
-                INSERT INTO {settings.ITEMS_TABLE_NAME} (text, adr, state)
+            # no 컬럼을 INSERT 목록에서 제거, f-string 대신 %s 사용
+            query = """
+                INSERT INTO {} (text, adr, state)
                 VALUES (%s, %s, %s)
-            """, (text, None, 0)) # no 값 제거
+            """.format(table_name) # f-string 대신 format 메소드 사용
+            
+            await cur.execute(query, (text, None, 0)) # no 값 제거
 
             # 삽입된 row의 자동 생성된 PK (no) 값 가져오기
             await cur.execute("SELECT LAST_INSERT_ID()")
@@ -82,14 +108,19 @@ async def get_items_to_process(threshold_time: datetime.datetime):
     """state=0 이고 update_time 이 임계값보다 오래된 데이터를 조회합니다."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute(f"""
+            query = """
                 SELECT no, text, adr, update_time -- update_time 컬럼 추가
-                FROM {settings.ITEMS_TABLE_NAME}
+                FROM {} 
                 WHERE state = 0 AND update_time < %s
                 ORDER BY update_time ASC
-            """, (threshold_time,))
+            """.format(table_name)
+            
+            await cur.execute(query, (threshold_time,))
             items = await cur.fetchall()
             return items
     except Exception as e:
@@ -103,15 +134,20 @@ async def mark_item_processed_and_assign_monitor(item_no: int, assigned_monitor_
     """데이터 처리 완료 후 state, get_time, adr(모니터 ID)을 업데이트합니다."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
             now = datetime.datetime.now()
             # no 컬럼이 INT이므로 %s로 바인딩할 때 정수 그대로 전달
-            await cur.execute(f"""
-                UPDATE {settings.ITEMS_TABLE_NAME}
+            query = """
+                UPDATE {} 
                 SET state = 1, get_time = %s, adr = %s
                 WHERE no = %s
-            """, (now, assigned_monitor_id, item_no)) # item_no는 이제 int
+            """.format(table_name)
+            
+            await cur.execute(query, (now, assigned_monitor_id, item_no)) # item_no는 이제 int
             await conn.commit()
             logger.info(f"Marked item '{item_no}' as processed and assigned to monitor {assigned_monitor_id}.")
     except Exception as e:
@@ -126,16 +162,21 @@ async def get_latest_processed_item_by_monitor_id(monitor_id: str):
     """특정 모니터 ID에 할당된 state=1인 최신 데이터를 조회합니다."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-             # no 컬럼이 이제 INT일 것입니다. 조회 결과 딕셔너리의 item['no']는 INT 타입
-            await cur.execute(f"""
+            # no 컬럼이 이제 INT일 것입니다. 조회 결과 딕셔너리의 item['no']는 INT 타입
+            query = """
                 SELECT no, text, update_time, get_time, adr, state
-                FROM {settings.ITEMS_TABLE_NAME}
+                FROM {} 
                 WHERE state = 1 AND adr = %s
                 ORDER BY get_time DESC
                 LIMIT 1
-            """, (monitor_id,))
+            """.format(table_name)
+            
+            await cur.execute(query, (monitor_id,))
             item = await cur.fetchone()
             return item # 결과가 없으면 None 반환, item['no']는 int
     except Exception as e:
@@ -149,9 +190,18 @@ async def get_all_items_db():
      """DB의 모든 데이터를 조회합니다."""
      conn = None
      try:
+         # 안전한 테이블 이름 가져오기
+         table_name = get_safe_table_name()
+         
          conn = await get_db_connection()
          async with conn.cursor() as cur:
-             await cur.execute(f"SELECT no, text, update_time, get_time, adr, state FROM {settings.ITEMS_TABLE_NAME} ORDER BY update_time DESC")
+             query = """
+                 SELECT no, text, update_time, get_time, adr, state 
+                 FROM {} 
+                 ORDER BY update_time DESC
+             """.format(table_name)
+             
+             await cur.execute(query)
              items = await cur.fetchall() # 각 item 딕셔너리의 'no' 값은 int
              return items
      except Exception as e:
@@ -165,15 +215,20 @@ async def get_latest_two_processed_items_by_monitor_id(monitor_id: str):
     """특정 모니터 ID에 할당된 state=1인 최신 데이터 2개를 조회합니다."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute(f"""
+            query = """
                 SELECT no, text, update_time, get_time, adr, state
-                FROM {settings.ITEMS_TABLE_NAME}
+                FROM {} 
                 WHERE state = 1 AND adr = %s
                 ORDER BY get_time DESC
                 LIMIT 2
-            """, (monitor_id,))
+            """.format(table_name)
+            
+            await cur.execute(query, (monitor_id,))
             items = await cur.fetchall()
             return items # 결과가 없으면 빈 리스트 반환
     except Exception as e:
@@ -187,15 +242,20 @@ async def get_assigned_items_queue(monitor_id: str, limit: int = 10):
     """특정 모니터 ID에 할당된 state=1인 데이터를 get_time 순서대로 조회합니다."""
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute(f"""
+            query = """
                 SELECT no, text, update_time, get_time, adr, state
-                FROM {settings.ITEMS_TABLE_NAME}
+                FROM {} 
                 WHERE state = 1 AND adr = %s
                 ORDER BY get_time ASC
                 LIMIT %s
-            """, (monitor_id, limit))
+            """.format(table_name)
+            
+            await cur.execute(query, (monitor_id, limit))
             items = await cur.fetchall()
             return items # 결과가 없으면 빈 리스트 반환
     except Exception as e:
@@ -212,17 +272,22 @@ async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int
     """
     conn = None
     try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute(f"""
+            query = """
                 SELECT no, text, update_time, get_time, adr, state
-                FROM {settings.ITEMS_TABLE_NAME}
+                FROM {} 
                 WHERE state = 1 
                 AND adr = %s
                 AND no > %s
                 ORDER BY get_time ASC
                 LIMIT %s
-            """, (monitor_id, last_displayed_item_no, limit))
+            """.format(table_name)
+            
+            await cur.execute(query, (monitor_id, last_displayed_item_no, limit))
             items = await cur.fetchall()
             
             # 새 항목이 없으면 빈 리스트를 반환 (더 이상 처음부터 다시 가져오지 않음)
