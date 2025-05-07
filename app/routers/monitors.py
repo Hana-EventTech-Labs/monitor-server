@@ -119,7 +119,15 @@ async def stream_monitor_updates(monitor_id: int):
                 
                 # 다음 항목으로 이동
                 await advance_monitor_queue(monitor_id_str)
-                CURRENT_ITEMS[monitor_id_str] = None
+                
+                # 큐가 비어있고 현재 항목이 있으면 현재 항목을 유지 (새 항목이 없을 때)
+                if not MONITOR_QUEUES.get(monitor_id_str, []) and monitor_id_str in CURRENT_ITEMS and CURRENT_ITEMS[monitor_id_str]:
+                    # 표시 시간만 리셋
+                    DISPLAY_TIMES[monitor_id_str] = current_time
+                    logger.info(f"No new items for monitor {monitor_id_str}, continuing to display current item {CURRENT_ITEMS[monitor_id_str]['no']}")
+                else:
+                    # 대기열에 항목이 있으면 현재 항목 초기화 (다음 항목을 표시하기 위해)
+                    CURRENT_ITEMS[monitor_id_str] = None
             
             # 표시할 항목이 없으면 다음 항목 가져오기
             if monitor_id_str not in CURRENT_ITEMS or CURRENT_ITEMS[monitor_id_str] is None:

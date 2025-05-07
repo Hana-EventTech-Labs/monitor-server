@@ -225,17 +225,7 @@ async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int
             """, (monitor_id, last_displayed_item_no, limit))
             items = await cur.fetchall()
             
-            # 새 항목이 없으면 기존 방식대로 처음부터 다시 가져옴
-            if not items:
-                await cur.execute(f"""
-                    SELECT no, text, update_time, get_time, adr, state
-                    FROM {settings.ITEMS_TABLE_NAME}
-                    WHERE state = 1 AND adr = %s
-                    ORDER BY get_time ASC
-                    LIMIT %s
-                """, (monitor_id, limit))
-                items = await cur.fetchall()
-                
+            # 새 항목이 없으면 빈 리스트를 반환 (더 이상 처음부터 다시 가져오지 않음)
             return items # 결과가 없으면 빈 리스트 반환
     except Exception as e:
         logger.error(f"Error fetching new items for monitor {monitor_id}: {e}")
