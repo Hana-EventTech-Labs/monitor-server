@@ -117,8 +117,11 @@ async def stream_monitor_updates(monitor_id: int):
                 monitor_id_str in DISPLAY_TIMES and 
                 current_time - DISPLAY_TIMES[monitor_id_str] >= ITEM_DISPLAY_DURATION):
                 
-                # 다음 항목으로 이동
+                # 다음 항목으로 이동 (항상 큐를 진행)
                 await advance_monitor_queue(monitor_id_str)
+                
+                # 새 항목을 검색하기 위해 큐 업데이트
+                await update_monitor_queue(monitor_id_str)
                 
                 # 큐가 비어있고 현재 항목이 있으면 현재 항목을 유지 (새 항목이 없을 때)
                 if not MONITOR_QUEUES.get(monitor_id_str, []) and monitor_id_str in CURRENT_ITEMS and CURRENT_ITEMS[monitor_id_str]:
