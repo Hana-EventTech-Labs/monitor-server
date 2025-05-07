@@ -203,3 +203,42 @@ async def get_assigned_items_queue(monitor_id: str, limit: int = 10):
         raise
     finally:
         if conn: await DB_POOL.release(conn)
+
+# --- get_new_items_for_monitor 함수 추가 ---
+async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int = 0, limit: int = 10):
+    """
+    마지막으로 표시된 항목 이후의 새 항목들을 가져옵니다.
+    이전에 표시된 항목의 번호(no)보다 큰 항목들만 반환합니다.
+    """
+    conn = None
+    try:
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            await cur.execute(f"""
+                SELECT no, text, update_time, get_time, adr, state
+                FROM {settings.ITEMS_TABLE_NAME}
+                WHERE state = 1 
+                AND adr = %s
+                AND no > %s
+                ORDER BY get_time ASC
+                LIMIT %s
+            """, (monitor_id, last_displayed_item_no, limit))
+            items = await cur.fetchall()
+            
+            # 새 항목이 없으면 기존 방식대로 처음부터 다시 가져옴
+            if not items:
+                await cur.execute(f"""
+                    SELECT no, text, update_time, get_time, adr, state
+                    FROM {settings.ITEMS_TABLE_NAME}
+                    WHERE state = 1 AND adr = %s
+                    ORDER BY get_time ASC
+                    LIMIT %s
+                """, (monitor_id, limit))
+                items = await cur.fetchall()
+                
+            return items # 결과가 없으면 빈 리스트 반환
+    except Exception as e:
+        logger.error(f"Error fetching new items for monitor {monitor_id}: {e}")
+        raise
+    finally:
+        if conn: await DB_POOL.release(conn)

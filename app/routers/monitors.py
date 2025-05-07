@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue # 새 DB 함수 임포트
+from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue, get_new_items_for_monitor # 새 DB 함수 임포트
 from ..core.config import settings # settings 임포트
 import json
 import asyncio
@@ -26,6 +26,7 @@ router = APIRouter(
 MONITOR_QUEUES: Dict[str, List[dict]] = {}  # 모니터별 표시할 항목 큐
 CURRENT_ITEMS: Dict[str, Optional[dict]] = {}  # 모니터별 현재 표시 중인 항목
 DISPLAY_TIMES: Dict[str, float] = {}  # 모니터별 항목 표시 시작 시간
+LAST_DISPLAYED_ITEMS: Dict[str, int] = {}  # 모니터별 마지막으로 표시된 항목의 no값
 
 # 항목 표시 시간(초)
 ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
@@ -53,15 +54,18 @@ async def display_for_monitor(monitor_id: int, request: Request): # monitor_id�
 async def update_monitor_queue(monitor_id: str):
     """모니터의 항목 큐를 업데이트합니다"""
     try:
-        # DB에서 모니터에 할당된 항목 가져오기
-        items = await get_assigned_items_queue(monitor_id, limit=20)  # 최대 20개까지 가져옴
+        # 마지막으로 표시된 항목의 no 값 가져오기 (없으면 0으로 기본값 설정)
+        last_item_no = LAST_DISPLAYED_ITEMS.get(monitor_id, 0)
+        
+        # DB에서 마지막으로 표시된 항목 이후의 항목들만 가져오기
+        items = await get_new_items_for_monitor(monitor_id, last_item_no, limit=20)
         
         if items:
             MONITOR_QUEUES[monitor_id] = items
-            logger.info(f"Updated queue for monitor {monitor_id} with {len(items)} items")
+            logger.info(f"Updated queue for monitor {monitor_id} with {len(items)} items (after item no: {last_item_no})")
         else:
             MONITOR_QUEUES[monitor_id] = []
-            logger.info(f"No items found for monitor {monitor_id}")
+            logger.info(f"No new items found for monitor {monitor_id}")
     except Exception as e:
         logger.error(f"Error updating queue for monitor {monitor_id}: {e}")
 
@@ -81,7 +85,14 @@ async def get_next_item_for_monitor(monitor_id: str) -> Optional[dict]:
 async def advance_monitor_queue(monitor_id: str):
     """모니터의 큐에서 현재 항목을 제거하고 다음 항목으로 이동합니다"""
     if monitor_id in MONITOR_QUEUES and MONITOR_QUEUES[monitor_id]:
-        MONITOR_QUEUES[monitor_id].pop(0)  # 첫 번째 항목 제거
+        # 현재 항목의 no 값을 저장 (마지막으로 표시된 항목으로 기록)
+        current_item = MONITOR_QUEUES[monitor_id][0]
+        if current_item and 'no' in current_item:
+            LAST_DISPLAYED_ITEMS[monitor_id] = current_item['no']
+            logger.info(f"Recorded last displayed item for monitor {monitor_id}: item no {current_item['no']}")
+        
+        # 첫 번째 항목 제거
+        MONITOR_QUEUES[monitor_id].pop(0)
         logger.info(f"Advanced queue for monitor {monitor_id}, {len(MONITOR_QUEUES[monitor_id])} items left")
         
         # 큐가 비었으면 다시 로드
