@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from .core.config import settings
 
 # 로깅 설정 (main에서 하는 것이 일반적)
@@ -60,6 +61,9 @@ async def lifespan(app: FastAPI):
 
 # FastAPI 애플리케이션 인스턴스 생성 (lifespan 적용)
 app = FastAPI(lifespan=lifespan)
+
+# 정적 파일 마운트
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 라우터 포함
 app.include_router(status.router) # 상태 확인 및 모의 엔드포인트
