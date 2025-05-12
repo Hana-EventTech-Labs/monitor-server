@@ -8,8 +8,8 @@
             font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 0; 
-            background-color: #ffffff;
-            color: #000000;
+            background-color: #000000; /* 배경색을 검정색으로 변경 */
+            color: #ffffff;
             display: flex;
             flex-direction: column;
             height: 100vh;
@@ -19,34 +19,33 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            position: relative;
         }
         .video-container {
-            flex: 1;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            position: relative;
+            height: 100%;
+            z-index: 1;
             background-color: #000;
-            overflow: hidden;
         }
-        video {
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .content-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
-        }
-        .text-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            color: white;
             z-index: 10;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
+            pointer-events: none; /* 오버레이가 iframe 클릭을 방해하지 않도록 */
         }
         .text-container {
             width: 90%;
@@ -75,6 +74,7 @@
             color: #ffffff;
             z-index: 20;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
         }
         .timer-bar {
             width: 50%;
@@ -96,15 +96,6 @@
             const eventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
             const textContentElement = document.getElementById('text-content');
             const timerProgressElement = document.getElementById('timer-progress');
-            
-            // 비디오 요소 초기화 및 자동 재생
-            const videoElement = document.getElementById('background-video');
-            videoElement.volume = 0.5; // 볼륨 50%로 설정
-            
-            // 비디오가 끝나면 다시 재생
-            videoElement.addEventListener('ended', function() {
-                videoElement.play();
-            });
             
             let timerInterval;
             
@@ -158,15 +149,18 @@
 <body>
     <div class="main-container">
         <div class="video-container">
-            <!-- 고정된 비디오 - static/videos 폴더에 video.mp4 파일을 업로드해야 함 -->
-            <video id="background-video" autoplay loop muted>
-                <source src="/static/videos/video.mp4" type="video/mp4">
-                브라우저가 비디오 태그를 지원하지 않습니다.
-            </video>
-            <div class="text-overlay">
-                <div id="text-content" class="text-container">
-                    <h1>대기 중...</h1>
-                </div>
+            <!-- YouTube 영상 삽입 -->
+            <iframe 
+                src="https://player.vimeo.com/video/1083415322?h=f4290a523b&loop=1&autoplay=1&muted=1&background=1" 
+                frameborder="0" 
+                allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" 
+                style="position:absolute;top:0;left:0;width:100%;height:100%;" 
+                title="KakaoTalk_20250512_154121598">
+            </iframe>
+        </div>
+        <div class="content-overlay">
+            <div id="text-content" class="text-container">
+                <h1>대기 중...</h1>
                 <div class="timer-bar">
                     <div id="timer-progress" class="timer-progress"></div>
                 </div>
