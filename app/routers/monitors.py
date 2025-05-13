@@ -30,6 +30,7 @@ LAST_DISPLAYED_ITEMS: Dict[str, int] = {}  # 모니터별 마지막으로 표시
 
 # 항목 표시 시간(초)
 ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
+NO_NEW_ITEMS_DISPLAY_DURATION = 5  # 새 항목이 없을 때 표시 시간(초)
 
 @router.get("/{monitor_id}/", response_class=HTMLResponse)
 async def display_for_monitor(monitor_id: int, request: Request): # monitor_id를 int로 받음
@@ -112,10 +113,20 @@ async def stream_monitor_updates(monitor_id: int):
         while True:
             current_time = time.time()
             
+            # 현재 항목이 표시된 시간을 가져옴
+            display_time = DISPLAY_TIMES.get(monitor_id_str, 0)
+            
+            # 현재 표시 중인 항목이 새 항목이 없는 경우인지 확인
+            is_no_new_items = (monitor_id_str in CURRENT_ITEMS and 
+                              not MONITOR_QUEUES.get(monitor_id_str, []))
+            
+            # 적용할 표시 시간 결정
+            display_duration = NO_NEW_ITEMS_DISPLAY_DURATION if is_no_new_items else ITEM_DISPLAY_DURATION
+            
             # 현재 항목이 지정된 시간을 초과했는지 확인
             if (monitor_id_str in CURRENT_ITEMS and 
                 monitor_id_str in DISPLAY_TIMES and 
-                current_time - DISPLAY_TIMES[monitor_id_str] >= ITEM_DISPLAY_DURATION):
+                current_time - display_time >= display_duration):
                 
                 # 다음 항목으로 이동 (항상 큐를 진행)
                 await advance_monitor_queue(monitor_id_str)
@@ -127,7 +138,7 @@ async def stream_monitor_updates(monitor_id: int):
                 if not MONITOR_QUEUES.get(monitor_id_str, []) and monitor_id_str in CURRENT_ITEMS and CURRENT_ITEMS[monitor_id_str]:
                     # 표시 시간만 리셋
                     DISPLAY_TIMES[monitor_id_str] = current_time
-                    logger.info(f"No new items for monitor {monitor_id_str}, continuing to display current item {CURRENT_ITEMS[monitor_id_str]['no']}")
+                    logger.info(f"No new items for monitor {monitor_id_str}, continuing to display current item {CURRENT_ITEMS[monitor_id_str]['no']} for {NO_NEW_ITEMS_DISPLAY_DURATION} seconds")
                 else:
                     # 대기열에 항목이 있으면 현재 항목 초기화 (다음 항목을 표시하기 위해)
                     CURRENT_ITEMS[monitor_id_str] = None
@@ -145,9 +156,14 @@ async def stream_monitor_updates(monitor_id: int):
             current_item = CURRENT_ITEMS.get(monitor_id_str)
             
             if current_item:
+                # 현재 표시 중인 항목이 새 항목이 없는 경우인지 다시 확인
+                is_no_new_items = not MONITOR_QUEUES.get(monitor_id_str, [])
+                # 적용할 표시 시간 결정
+                display_duration = NO_NEW_ITEMS_DISPLAY_DURATION if is_no_new_items else ITEM_DISPLAY_DURATION
+                
                 # 남은 표시 시간 계산
                 elapsed_time = current_time - DISPLAY_TIMES.get(monitor_id_str, current_time)
-                remaining_time = max(0, ITEM_DISPLAY_DURATION - elapsed_time)
+                remaining_time = max(0, display_duration - elapsed_time)
                 
                 response_data = {
                     "item": current_item,
