@@ -95,8 +95,38 @@
     </style>
     <script>
         // SSE를 통한 실시간 업데이트
+        let eventSource; // 전역 변수로 선언
+        let pingInterval; // 핑 인터벌 변수
+        
+        // SSE 연결 설정 함수
+        function setupEventSource() {
+            // 기존 연결이 있으면 정리
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            if (pingInterval) {
+                clearInterval(pingInterval);
+            }
+            
+            // 새 SSE 연결 생성
+            eventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
+            
+            // 15분마다 핑을 보내 연결 유지 (크롬 20분 타임아웃 방지)
+            pingInterval = setInterval(() => {
+                console.log('핑: SSE 연결 유지 중...');
+                
+                // 서버에 핑 요청을 보내거나 더미 요청을 보내 연결 유지
+                fetch('/monitor/{{ monitor_id }}/ping', { method: 'GET' })
+                    .catch(err => console.log('핑 요청 실패:', err));
+            }, 900000); // 15분(900,000ms)
+            
+            return eventSource;
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
-            const eventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
+            // SSE 연결 설정
+            eventSource = setupEventSource();
             const textContentElement = document.getElementById('text-content');
             const timerProgressElement = document.getElementById('timer-progress');
             
@@ -148,11 +178,29 @@
             
             eventSource.onerror = function(error) {
                 console.error('SSE Error:', error);
-                eventSource.close();
-                setTimeout(() => {
-                    location.reload();
-                }, 5000); // 5초 후 페이지 새로고침
+                
+                // 연결 오류 발생 시에만 새로고침하도록 수정
+                // 크롬에서 SSE 연결이 약 20분마다 자동으로 끊기는 문제를 방지하기 위해
+                // 연결이 끊기면 즉시 재연결 시도
+                const reconnect = () => {
+                    console.log('SSE 연결 재시도 중...');
+                    
+                    // 새 EventSource 설정 (페이지 새로고침 대신)
+                    eventSource = setupEventSource();
+                    
+                    // 이벤트 핸들러 다시 연결
+                    setupEventHandlers(eventSource);
+                };
+                
+                // 즉시 재연결 시도
+                reconnect();
             };
+            
+            // 이벤트 핸들러 설정 함수
+            function setupEventHandlers(source) {
+                source.onmessage = eventSource.onmessage;
+                source.onerror = eventSource.onerror;
+            }
         });
     </script>
 </head>

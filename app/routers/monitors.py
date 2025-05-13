@@ -1,7 +1,7 @@
 # app/routers/monitors.py
 import logging
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue, get_new_items_for_monitor # 새 DB 함수 임포트
 from ..core.config import settings # settings 임포트
@@ -184,3 +184,11 @@ async def stream_monitor_updates(monitor_id: int):
         event_generator(),
         media_type="text/event-stream"
     )
+
+@router.get("/{monitor_id}/ping")
+async def ping_monitor(monitor_id: int):
+    """
+    클라이언트의 핑 요청을 처리하는 엔드포인트.
+    SSE 연결을 유지하기 위한 더미 요청을 처리합니다.
+    """
+    return JSONResponse({"status": "ok", "monitor_id": monitor_id, "timestamp": datetime.now().isoformat()})
