@@ -60,9 +60,10 @@
             align-items: center;
         }
         .text-row {
-            width: 80%;
-            max-width: 800px;
+            width: 30%;
+            max-width: 500px;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             margin: 0 auto;
@@ -74,15 +75,16 @@
             padding: 5px;
         }
         .text-item {
-            flex: 1;
+            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100%;
+            /* 세로 방향으로 각 아이템의 높이 조정 */
+            height: 50%; /* 전체 높이의 절반 */
             /* 테두리 추가 - 개발 중에만 사용 */
             border: 1px dashed rgba(0, 0, 255, 0.3);
             background-color: rgba(200, 200, 255, 0.1);
-            margin: 0 5px;
+            margin: 2px 0; /* 상하 마진으로 변경 */
         }
         h1 { 
             font-family: 'Pretendard', sans-serif;
