@@ -253,9 +253,12 @@
                     // 간격 높이 계산: 40 + 56 - fontSize
                     const gapHeight = 40 + 56 - fontSize;
                     
+                    // 상단 마진 계산: 14 + 56 - fontSize
+                    const topMargin = 14 + 56 - fontSize;
+                    
                     // 동적 스타일 적용
                     textContentElement.innerHTML = `
-                        <h2 style="font-size: ${fontSize}px;">${data.item.text}'s<span class="text-line-gap" style="height: ${gapHeight}px;"></span>${data.item.text}'s</h2>
+                        <h2 style="font-size: ${fontSize}px; margin-top: ${topMargin}px;">${data.item.text}'s<span class="text-line-gap" style="height: ${gapHeight}px;"></span>${data.item.text}'s</h2>
                     `;
                     
                     // 타이머 재설정
