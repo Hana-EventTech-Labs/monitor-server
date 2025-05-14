@@ -297,3 +297,32 @@ async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int
         raise
     finally:
         if conn: await DB_POOL.release(conn)
+
+# --- get_latest_item_no 함수 추가 ---
+async def get_latest_item_no():
+    """DB에서 가장 최신 항목의 no 값을 가져옵니다."""
+    conn = None
+    try:
+        # 안전한 테이블 이름 가져오기
+        table_name = get_safe_table_name()
+        
+        conn = await get_db_connection()
+        async with conn.cursor() as cur:
+            query = """
+                SELECT MAX(no) as latest_no
+                FROM {}
+            """.format(table_name)
+            
+            await cur.execute(query)
+            result = await cur.fetchone()
+            
+            # 결과가 없거나 NULL이면 0 반환
+            if not result or result['latest_no'] is None:
+                return 0
+                
+            return result['latest_no']
+    except Exception as e:
+        logger.error(f"Error fetching latest item no: {e}")
+        return 0  # 오류 발생 시 기본값 0 반환
+    finally:
+        if conn: await DB_POOL.release(conn)

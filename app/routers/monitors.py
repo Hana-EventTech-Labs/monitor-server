@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue, get_new_items_for_monitor # 새 DB 함수 임포트
+from ..database import get_latest_processed_item_by_monitor_id, get_latest_two_processed_items_by_monitor_id, get_assigned_items_queue, get_new_items_for_monitor, get_latest_item_no # get_latest_item_no 함수 추가
 from ..core.config import settings # settings 임포트
 import json
 import asyncio
@@ -31,6 +31,25 @@ LAST_DISPLAYED_ITEMS: Dict[str, int] = {}  # 모니터별 마지막으로 표시
 # 항목 표시 시간(초)
 ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
 NO_NEW_ITEMS_DISPLAY_DURATION = 5  # 새 항목이 없을 때 표시 시간(초)
+
+# 모듈 초기화 함수
+async def initialize_monitor_state():
+    """
+    서버 시작 시 모든 모니터의 상태를 초기화합니다.
+    DB의 마지막 항목 번호를 가져와 각 모니터의 마지막 표시 항목으로 설정합니다.
+    """
+    try:
+        # DB에서 최신 항목의 번호 가져오기
+        latest_item_no = await get_latest_item_no()
+        
+        # 모든 모니터의 마지막 표시 항목 번호를 최신 항목으로 설정
+        for monitor_id in range(1, settings.MONITOR_COUNT + 1):
+            LAST_DISPLAYED_ITEMS[str(monitor_id)] = latest_item_no
+        
+        logger.info(f"초기화 완료: 모든 모니터의 마지막 표시 항목 번호를 {latest_item_no}으로 설정했습니다.")
+    except Exception as e:
+        logger.error(f"모니터 상태 초기화 중 오류 발생: {e}")
+        # 오류 발생 시에도 계속 진행 (기본값 0으로 작동)
 
 @router.get("/{monitor_id}/", response_class=HTMLResponse)
 async def display_for_monitor(monitor_id: int, request: Request): # monitor_id를 int로 받음

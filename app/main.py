@@ -69,3 +69,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(status.router) # 상태 확인 및 모의 엔드포인트
 app.include_router(items.router)  # 데이터 추가/조회 엔드포인트
 app.include_router(monitors.router) # ***새 라우터 포함***
+
+# 모니터 라우터 초기화 함수 호출
+@app.on_event("startup")
+async def app_startup():
+    """애플리케이션 시작 시 모니터 초기화를 수행합니다."""
+    from .routers.monitors import initialize_monitor_state
+    await initialize_monitor_state()
+    logger.info("모니터 상태가 초기화되었습니다.")
