@@ -180,23 +180,34 @@
                     const text = data.item.text;
                     let fontSize = 56; // 기본 폰트 크기 (px)
                     
-                    // 컨테이너 너비의 약 70%를 최대 너비로 설정 (80%에서 70%로 변경)
-                    const containerWidth = textContentElement.offsetWidth * 0.7;
+                    // 컨테이너 너비의 약 60%를 최대 너비로 설정 (70%에서 60%로 변경)
+                    const containerWidth = textContentElement.offsetWidth * 0.6;
                     
                     // 기본 폰트 크기로 텍스트 너비 측정 (양쪽 's 포함)
-                    let textWidth = getTextWidth(text + "'s", fontSize);
+                    let textWidth = getTextWidth(text + "'s" + text + "'s", fontSize);
                     
                     // 텍스트가 너무 넓으면 폰트 크기 조절
                     if (textWidth > containerWidth) {
                         // 너비 비율에 따라 폰트 크기 조절
                         const ratio = containerWidth / textWidth;
-                        // 더 작은 폰트 크기 허용 (최소값 15px로 변경)
-                        fontSize = Math.max(15, Math.floor(fontSize * ratio * 0.95)); // 추가 안전 마진 5%
+                        // 더 작은 폰트 크기 허용 (최소값 12px로 변경)
+                        fontSize = Math.max(12, Math.floor(fontSize * ratio * 0.9)); // 추가 안전 마진 10%
                     }
                     
-                    // 텍스트가 매우 긴 경우 (30자 이상) 추가 축소
-                    if (text.length > 30) {
-                        fontSize = Math.max(15, fontSize * 0.9); // 10% 추가 축소
+                    // 텍스트 길이에 따른 추가 축소
+                    if (text.length > 20) {
+                        fontSize = Math.max(12, fontSize * 0.85); // 15% 추가 축소
+                    } else if (text.length > 10) {
+                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소
+                    }
+                    
+                    // 대문자 비율 계산
+                    const uppercaseCount = (text.match(/[A-Z]/g) || []).length;
+                    const uppercaseRatio = uppercaseCount / text.length;
+                    
+                    // 대문자 비율이 높으면 추가 축소
+                    if (uppercaseRatio > 0.5 && text.length > 5) {
+                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소
                     }
                     
                     // 간격 높이 계산: 40 + 56 - fontSize
