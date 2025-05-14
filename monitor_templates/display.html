@@ -178,10 +178,10 @@
                 if (data.item) {
                     // 텍스트 너비에 따라 폰트 크기 조절
                     const text = data.item.text;
-                    let fontSize = 56; // 기본 폰트 크기 (px)
+                    let fontSize = 56; // 기본 폰트 크기 (px) - 56에서 60으로 증가
                     
-                    // 컨테이너 너비의 약 55%를 최대 너비로 설정 (60%에서 55%로 변경)
-                    const containerWidth = textContentElement.offsetWidth * 0.55;
+                    // 컨테이너 너비의 약 58%를 최대 너비로 설정 (55%에서 58%로 변경)
+                    const containerWidth = textContentElement.offsetWidth * 0.58;
                     
                     // 기본 폰트 크기로 텍스트 너비 측정 (양쪽 's 포함)
                     let textWidth = getTextWidth(text + "'s" + text + "'s", fontSize);
@@ -190,43 +190,46 @@
                     if (textWidth > containerWidth) {
                         // 너비 비율에 따라 폰트 크기 조절
                         const ratio = containerWidth / textWidth;
-                        // 더 작은 폰트 크기 허용 (최소값 10px로 변경)
-                        fontSize = Math.max(10, Math.floor(fontSize * ratio * 0.85)); // 추가 안전 마진 15%
+                        // 더 작은 폰트 크기 허용 (최소값 12px로 변경)
+                        fontSize = Math.max(12, Math.floor(fontSize * ratio * 0.9)); // 안전 마진 10%로 완화
                     }
                     
-                    // 텍스트 길이에 따른 추가 축소
+                    // 텍스트 길이에 따른 추가 축소 - 축소 비율 완화
                     if (text.length > 25) {
-                        fontSize = Math.max(10, fontSize * 0.75); // 25% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.85); // 15% 추가 축소 (25%에서 완화)
                     } else if (text.length > 15) {
-                        fontSize = Math.max(10, fontSize * 0.8); // 20% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소 (20%에서 완화)
                     } else if (text.length > 8) {
-                        fontSize = Math.max(10, fontSize * 0.85); // 15% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (15%에서 완화)
                     }
                     
                     // 대문자 비율 계산
                     const uppercaseCount = (text.match(/[A-Z]/g) || []).length;
                     const uppercaseRatio = uppercaseCount / text.length;
                     
-                    // 대문자 비율이 높으면 추가 축소
+                    // 대문자 비율이 높으면 추가 축소 - 축소 비율 완화
                     if (uppercaseRatio > 0.7) {
-                        fontSize = Math.max(10, fontSize * 0.8); // 20% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소 (20%에서 완화)
                     } else if (uppercaseRatio > 0.4) {
-                        fontSize = Math.max(10, fontSize * 0.85); // 15% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (15%에서 완화)
                     }
                     
-                    // 특수 문자나 숫자가 많은 경우 추가 축소
+                    // 특수 문자나 숫자가 많은 경우 추가 축소 - 축소 비율 완화
                     const specialCharsCount = (text.match(/[^a-zA-Z\s]/g) || []).length;
                     const specialCharRatio = specialCharsCount / text.length;
                     
                     if (specialCharRatio > 0.3) {
-                        fontSize = Math.max(10, fontSize * 0.9); // 10% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (10%에서 완화)
                     }
                     
-                    // 단어 수 확인
+                    // 단어 수 확인 - 축소 비율 완화
                     const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
                     if (wordCount > 3) {
-                        fontSize = Math.max(10, fontSize * 0.9); // 10% 추가 축소
+                        fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (10%에서 완화)
                     }
+                    
+                    // 최종 폰트 크기 계산 후 1.2배 증가 (전체적으로 크기 증가)
+                    fontSize = Math.min(60, Math.floor(fontSize * 1.2));
                     
                     // 간격 높이 계산: 40 + 56 - fontSize
                     const gapHeight = 40 + 56 - fontSize;
