@@ -31,6 +31,8 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
     recently_processed_items = set()
     # 세트 크기 제한 (메모리 사용 제한)
     MAX_RECENT_ITEMS = 1000
+    # 하트비트 로그 간격 설정 (초)
+    HEARTBEAT_INTERVAL = 300  # 5분마다 하트비트 로그 출력 (1분에서 5분으로 변경)
 
     while True:
         try:
@@ -41,8 +43,8 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
                 now = datetime.datetime.now() + datetime.timedelta(hours=9)
             threshold_time = now - datetime.timedelta(minutes=settings.OLD_DATA_THRESHOLD_MINUTES)
 
-            # 주기적으로 워커가 살아있음을 알리는 하트비트 로그 (1분마다)
-            if (now - last_heartbeat_time).total_seconds() >= 60:
+            # 주기적으로 워커가 살아있음을 알리는 하트비트 로그 (5분마다)
+            if (now - last_heartbeat_time).total_seconds() >= HEARTBEAT_INTERVAL:
                 logger.info(f"Worker heartbeat: Active for {check_count} checks, processed {total_items_processed} items so far {now}, threshold_time: {threshold_time}")
                 last_heartbeat_time = now
 
@@ -56,8 +58,8 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
             if items_to_process:
                 logger.info(f"Found {len(items_to_process)} items to process")
             else:
-                # 10회 체크마다 한 번씩 로그 출력 (너무 많은 로그 방지)
-                if check_count % 10 == 0:
+                # 30회 체크마다 한 번씩 로그 출력 (너무 많은 로그 방지)
+                if check_count % 30 == 0:
                     logger.info(f"Worker check #{check_count}: No items found matching criteria")
 
             # 조회된 각 항목에 대해 순환적으로 모니터 ID 할당 및 DB 업데이트
