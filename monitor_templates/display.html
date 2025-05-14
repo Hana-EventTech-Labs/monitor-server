@@ -161,22 +161,25 @@
                 if (data.item) {
                     // 텍스트 길이에 따라 폰트 크기 조절
                     const text = data.item.text;
-                    let fontSize = '56px'; // 기본 폰트 크기 3.5rem을 px로 변환
+                    let fontSize = 56; // 기본 폰트 크기 (px)
                     
                     // 텍스트 길이에 따른 폰트 크기 조절 - 비율 재조정
                     if (text.length > 5 && text.length <= 10) {
-                        fontSize = '46px'; // 2.9rem을 px로 변환
+                        fontSize = 46; // px
                     } else if (text.length > 10 && text.length <= 15) {
-                        fontSize = '37px'; // 2.3rem을 px로 변환
+                        fontSize = 37; // px
                     } else if (text.length > 15 && text.length <= 20) {
-                        fontSize = '27px'; // 1.7rem을 px로 변환
+                        fontSize = 27; // px
                     } else if (text.length > 20) {
-                        fontSize = '18px'; // 1.1rem을 px로 변환
+                        fontSize = 18; // px
                     }
+                    
+                    // 간격 높이 계산: 40 + 56 - fontSize
+                    const gapHeight = 40 + 56 - fontSize;
                     
                     // 동적 스타일 적용
                     textContentElement.innerHTML = `
-                        <h2 style="font-size: ${fontSize};">${data.item.text}'s<span class="text-line-gap"></span>${data.item.text}'s</h2>
+                        <h2 style="font-size: ${fontSize}px;">${data.item.text}'s<span class="text-line-gap" style="height: ${gapHeight}px;"></span>${data.item.text}'s</h2>
                     `;
                     
                     // 타이머 재설정
