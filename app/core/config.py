@@ -24,7 +24,7 @@ class Settings:
 
     # 워커 설정
     CHECK_INTERVAL_SECONDS: int = int(os.getenv("CHECK_INTERVAL_SECONDS", "10"))
-    OLD_DATA_THRESHOLD_MINUTES: int = int(os.getenv("OLD_DATA_THRESHOLD_MINUTES", "5"))
+    OLD_DATA_THRESHOLD_MINUTES: float = float(os.getenv("OLD_DATA_THRESHOLD_MINUTES", "5"))
 
     # 모니터 설정
     MONITOR_COUNT: int = int(os.getenv("MONITOR_COUNT", "3"))
@@ -44,6 +44,10 @@ class Settings:
         # 체크 간격이 너무 짧으면 경고
         if self.CHECK_INTERVAL_SECONDS < 5:
             logger.warning(f"CHECK_INTERVAL_SECONDS is set to {self.CHECK_INTERVAL_SECONDS}, which might be too short.")
+        
+        # 데이터 임계값이 너무 작으면 경고
+        if self.OLD_DATA_THRESHOLD_MINUTES < 0.1:
+            logger.warning(f"OLD_DATA_THRESHOLD_MINUTES is set to {self.OLD_DATA_THRESHOLD_MINUTES}, which might be too short.")
     
     def _log_settings(self):
         """현재 설정 로깅"""
