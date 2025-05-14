@@ -55,6 +55,19 @@
             text-align: center;
             padding: 20px;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .text-row {
+            width: 80%;
+            max-width: 800px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            /* 높이 고정 - fontSize 56px 기준으로 계산 */
+            height: 180px; /* 텍스트 높이 + 간격 + 여백 등을 고려한 값 */
         }
         h1 { 
             font-family: 'Pretendard', sans-serif;
@@ -66,15 +79,21 @@
         h2 { 
             font-family: 'Pretendard', sans-serif;
             font-size: 56px; /* 3.5rem을 px로 변환 */
-            margin: 14px 0 23px 0;
+            margin: 0; /* 마진 제거 - 컨테이너에서 관리 */
             color: #000000;
             white-space: pre-line;
             font-weight: 500;
+            width: 100%;
+            text-align: center;
+            /* 텍스트 세로 중앙 정렬을 위한 설정 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         /* 첫 번째 줄과 두 번째 줄 사이의 간격 설정 */
         .text-line-gap {
             display: block;
-            height: 40px; /* 원하는 간격 크기를 설정하세요 */
+            height: 40px; /* 고정 간격 */
         }
         p { 
             font-family: 'Pretendard', sans-serif;
@@ -256,9 +275,17 @@
                     // 상단 마진 계산: 14 + 56 - fontSize
                     const topMargin = 14 + 56 - fontSize;
                     
-                    // 동적 스타일 적용
+                    // 텍스트 컨테이너 너비 설정 (화면 너비의 80%)
+                    const textWidth1 = 'auto'; // 첫 번째 텍스트 너비
+                    const textWidth2 = 'auto'; // 두 번째 텍스트 너비
+                    
+                    // 동적 스타일 적용 (고정 너비와 높이 컨테이너 사용)
                     textContentElement.innerHTML = `
-                        <h2 style="font-size: ${fontSize}px; margin-top: ${topMargin}px;">${data.item.text}'s<span class="text-line-gap" style="height: ${gapHeight}px;"></span>${data.item.text}'s</h2>
+                        <div class="text-row">
+                            <h2 style="font-size: ${fontSize}px;">
+                                ${data.item.text}'s<span class="text-line-gap"></span>${data.item.text}'s
+                            </h2>
+                        </div>
                     `;
                     
                     // 타이머 재설정
