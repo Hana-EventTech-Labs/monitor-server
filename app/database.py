@@ -264,11 +264,17 @@ async def get_assigned_items_queue(monitor_id: str, limit: int = 10):
     finally:
         if conn: await DB_POOL.release(conn)
 
-# --- get_new_items_for_monitor 함수 추가 ---
-async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int = 0, limit: int = 10):
+# --- get_new_items_for_monitor 함수 수정 ---
+async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int = 0, limit: int = 10, should_log: bool = False):
     """
     마지막으로 표시된 항목 이후의 새 항목들을 가져옵니다.
     이전에 표시된 항목의 번호(no)보다 큰 항목들만 반환합니다.
+    
+    Args:
+        monitor_id: 모니터 ID
+        last_displayed_item_no: 마지막으로 표시된 항목 번호
+        limit: 최대 항목 수
+        should_log: 로그 출력 여부
     """
     conn = None
     try:
@@ -277,6 +283,22 @@ async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int
         
         conn = await get_db_connection()
         async with conn.cursor() as cur:
+            # 디버깅: 데이터베이스의 모든 항목 개수 확인
+            query_count = f"SELECT COUNT(*) as total FROM {table_name} WHERE state = 1 AND adr = %s"
+            await cur.execute(query_count, (monitor_id,))
+            count_result = await cur.fetchone()
+            total_items = count_result['total'] if count_result else 0
+            
+            # 디버깅: 조건을 만족하는 항목 개수 확인
+            query_count_after = f"SELECT COUNT(*) as matching FROM {table_name} WHERE state = 1 AND adr = %s AND no > %s"
+            await cur.execute(query_count_after, (monitor_id, last_displayed_item_no))
+            count_after = await cur.fetchone()
+            matching_items = count_after['matching'] if count_after else 0
+            
+            # 로그 출력 여부에 따라 로그 출력
+            if should_log:
+                logger.info(f"DB 조회: 모니터 {monitor_id} - 총 {total_items}개 항목 중 {matching_items}개가 no > {last_displayed_item_no} 조건 만족")
+            
             query = """
                 SELECT no, text, update_time, get_time, adr, state
                 FROM {} 
@@ -290,8 +312,16 @@ async def get_new_items_for_monitor(monitor_id: str, last_displayed_item_no: int
             await cur.execute(query, (monitor_id, last_displayed_item_no, limit))
             items = await cur.fetchall()
             
-            # 새 항목이 없으면 빈 리스트를 반환 (더 이상 처음부터 다시 가져오지 않음)
-            return items # 결과가 없으면 빈 리스트 반환
+            # 로그 출력 여부에 따라 로그 출력
+            if should_log:
+                if items:
+                    item_nos = [item['no'] for item in items]
+                    logger.info(f"모니터 {monitor_id}를 위해 {len(items)}개 항목 가져옴. 항목 번호: {item_nos}")
+                else:
+                    logger.info(f"모니터 {monitor_id}를 위한 새 항목 없음 (no > {last_displayed_item_no})")
+            
+            # 새 항목이 없으면 빈 리스트를 반환
+            return items
     except Exception as e:
         logger.error(f"Error fetching new items for monitor {monitor_id}: {e}")
         raise

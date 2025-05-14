@@ -28,9 +28,14 @@ CURRENT_ITEMS: Dict[str, Optional[dict]] = {}  # 모니터별 현재 표시 중�
 DISPLAY_TIMES: Dict[str, float] = {}  # 모니터별 항목 표시 시작 시간
 LAST_DISPLAYED_ITEMS: Dict[str, int] = {}  # 모니터별 마지막으로 표시된 항목의 no값
 
+# 모니터별 로그 메시지 표시 횟수를 제한하기 위한 변수 추가
+LOG_COUNTERS: Dict[str, int] = {}  # 모니터별 로그 카운터
+
 # 항목 표시 시간(초)
 ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
 NO_NEW_ITEMS_DISPLAY_DURATION = 5  # 새 항목이 없을 때 표시 시간(초)
+SSE_UPDATE_INTERVAL = 1  # SSE 업데이트 간격(초)
+LOG_INTERVAL = 60  # 로그 출력 간격(초) - 60초로 증가
 
 # 모듈 초기화 함수
 async def initialize_monitor_state():
@@ -46,7 +51,7 @@ async def initialize_monitor_state():
         for monitor_id in range(1, settings.MONITOR_COUNT + 1):
             LAST_DISPLAYED_ITEMS[str(monitor_id)] = latest_item_no
         
-        logger.info(f"초기화 완료: 모든 모니터의 마지막 표시 항목 번호를 {latest_item_no}으로 설정했습니다.")
+        logger.info(f"모니터 초기화 완료: 서버 시작 시점의 마지막 항목 번호({latest_item_no}) 이후의 항목부터 표시합니다.")
     except Exception as e:
         logger.error(f"모니터 상태 초기화 중 오류 발생: {e}")
         # 오류 발생 시에도 계속 진행 (기본값 0으로 작동)
@@ -77,15 +82,23 @@ async def update_monitor_queue(monitor_id: str):
         # 마지막으로 표시된 항목의 no 값 가져오기 (없으면 0으로 기본값 설정)
         last_item_no = LAST_DISPLAYED_ITEMS.get(monitor_id, 0)
         
+        # 로그 출력 여부 결정
+        should_log = False
+        if monitor_id in LOG_COUNTERS:
+            counter = LOG_COUNTERS[monitor_id]
+            should_log = (counter <= 2 or counter % LOG_INTERVAL == 0)
+        
         # DB에서 마지막으로 표시된 항목 이후의 항목들만 가져오기
-        items = await get_new_items_for_monitor(monitor_id, last_item_no, limit=20)
+        items = await get_new_items_for_monitor(monitor_id, last_item_no, limit=20, should_log=should_log)
         
         if items:
             MONITOR_QUEUES[monitor_id] = items
             logger.info(f"Updated queue for monitor {monitor_id} with {len(items)} items (after item no: {last_item_no})")
         else:
             MONITOR_QUEUES[monitor_id] = []
-            logger.info(f"No new items found for monitor {monitor_id}")
+            # 로그 카운터를 확인하여 로그 표시 여부 결정
+            if monitor_id in LOG_COUNTERS and LOG_COUNTERS[monitor_id] % LOG_INTERVAL == 0:
+                logger.info(f"No new items found for monitor {monitor_id}")
     except Exception as e:
         logger.error(f"Error updating queue for monitor {monitor_id}: {e}")
 
@@ -123,6 +136,16 @@ async def advance_monitor_queue(monitor_id: str):
 async def stream_monitor_updates(monitor_id: int):
     """모니터 데이터의 실시간 업데이트를 위한 SSE 스트림"""
     monitor_id_str = str(monitor_id)
+    
+    # 모니터가 아직 초기화되지 않았거나 마지막 표시 항목이 0인 경우
+    # DB 최신 항목 번호를 다시 확인하여 설정
+    if monitor_id_str not in LAST_DISPLAYED_ITEMS or LAST_DISPLAYED_ITEMS[monitor_id_str] == 0:
+        try:
+            latest_no = await get_latest_item_no()
+            LAST_DISPLAYED_ITEMS[monitor_id_str] = latest_no
+            logger.info(f"Stream 연결 시 모니터 {monitor_id_str} 초기화: 마지막 항목 번호 {latest_no}로 설정")
+        except Exception as e:
+            logger.error(f"Stream 연결 시 모니터 {monitor_id_str} 초기화 오류: {e}")
     
     # 모니터 큐 초기화
     if monitor_id_str not in MONITOR_QUEUES:
@@ -164,12 +187,42 @@ async def stream_monitor_updates(monitor_id: int):
             
             # 표시할 항목이 없으면 다음 항목 가져오기
             if monitor_id_str not in CURRENT_ITEMS or CURRENT_ITEMS[monitor_id_str] is None:
+                # 다음 항목을 가져오기 전 마지막 표시 항목 번호 확인
+                # 로그 카운터 관리
+                if monitor_id_str not in LOG_COUNTERS:
+                    LOG_COUNTERS[monitor_id_str] = 0
+                
+                LOG_COUNTERS[monitor_id_str] += 1
+                
+                # 로그 간격에 맞게 출력
+                if LOG_COUNTERS[monitor_id_str] <= 2 or LOG_COUNTERS[monitor_id_str] % LOG_INTERVAL == 0:
+                    last_no = LAST_DISPLAYED_ITEMS.get(monitor_id_str, 0)
+                    logger.info(f"모니터 {monitor_id_str}의 현재 마지막 표시 항목 번호: {last_no}, 다음 항목 가져오는 중...")
+                
                 next_item = await get_next_item_for_monitor(monitor_id_str)
                 
                 if next_item:
                     CURRENT_ITEMS[monitor_id_str] = next_item
                     DISPLAY_TIMES[monitor_id_str] = current_time
+                    
+                    # 현재 항목을 표시할 때 즉시 마지막 표시 항목으로 기록
+                    if 'no' in next_item:
+                        LAST_DISPLAYED_ITEMS[monitor_id_str] = next_item['no']
+                        logger.info(f"모니터 {monitor_id_str}에 항목 {next_item['no']} 표시 및 마지막 표시 항목으로 기록. 이전: {LAST_DISPLAYED_ITEMS.get(monitor_id_str, 0)}")
+                    
                     logger.info(f"Now displaying item {next_item['no']} on monitor {monitor_id_str}")
+                else:
+                    # 표시할 항목이 없을 때 주기적으로 큐 새로고침
+                    # 로그 카운터는 이미 위에서 증가시켰으므로 다시 증가시키지 않음
+                    
+                    # LOG_INTERVAL초마다 한 번씩 로그 출력 (초기 몇 번은 항상 출력)
+                    if LOG_COUNTERS[monitor_id_str] <= 2 or LOG_COUNTERS[monitor_id_str] % LOG_INTERVAL == 0:
+                        last_no = LAST_DISPLAYED_ITEMS.get(monitor_id_str, 0)
+                        logger.info(f"모니터 {monitor_id_str}에 표시할 항목 없음. 마지막 표시 항목 번호: {last_no} (로그 카운트: {LOG_COUNTERS[monitor_id_str]})")
+                    
+                    # 항목이 없을 때도 정기적으로 큐 업데이트 (60초마다)
+                    if current_time % LOG_INTERVAL < 1 or LOG_COUNTERS[monitor_id_str] <= 3:  # 처음 3번은 매번 업데이트
+                        await update_monitor_queue(monitor_id_str)
             
             # SSE 이벤트로 현재 항목 전송
             current_item = CURRENT_ITEMS.get(monitor_id_str)
@@ -197,7 +250,7 @@ async def stream_monitor_updates(monitor_id: int):
                 }
                 
             yield f"data: {json.dumps(response_data, default=str)}\n\n"
-            await asyncio.sleep(1)  # 1초 간격으로 업데이트
+            await asyncio.sleep(SSE_UPDATE_INTERVAL)  # SSE_UPDATE_INTERVAL 간격으로 업데이트
     
     return StreamingResponse(
         event_generator(),
