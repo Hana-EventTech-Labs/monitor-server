@@ -66,7 +66,7 @@
         h2 { 
             font-family: 'Pretendard', sans-serif;
             font-size: 3.4rem; 
-            margin: 14px 0 20px 0;
+            margin: 14px 0 22px 0;
             color: #000000;
             white-space: pre-line;
             font-weight: 500;
@@ -74,7 +74,7 @@
         /* 첫 번째 줄과 두 번째 줄 사이의 간격 설정 */
         .text-line-gap {
             display: block;
-            height: 43px; /* 원하는 간격 크기를 설정하세요 */
+            height: 41px; /* 원하는 간격 크기를 설정하세요 */
         }
         p { 
             font-family: 'Pretendard', sans-serif;
@@ -165,13 +165,13 @@
                     
                     // 텍스트 길이에 따른 폰트 크기 조절 - 비율 재조정
                     if (text.length > 5 && text.length <= 10) {
-                        fontSize = '3.1rem';
+                        fontSize = '2.9rem';
                     } else if (text.length > 10 && text.length <= 15) {
-                        fontSize = '2.7rem';
-                    } else if (text.length > 15 && text.length <= 20) {
                         fontSize = '2.3rem';
+                    } else if (text.length > 15 && text.length <= 20) {
+                        fontSize = '1.7rem';
                     } else if (text.length > 20) {
-                        fontSize = '1.9rem';
+                        fontSize = '1.1rem';
                     }
                     
                     // 동적 스타일 적용
