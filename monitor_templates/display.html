@@ -68,6 +68,21 @@
             margin: 0 auto;
             /* 높이 고정 - fontSize 56px 기준으로 계산 */
             height: 180px; /* 텍스트 높이 + 간격 + 여백 등을 고려한 값 */
+            /* 테두리 추가 - 개발 중에만 사용 */
+            border: 1px dashed rgba(255, 0, 0, 0.3);
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+        }
+        .text-item {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            /* 테두리 추가 - 개발 중에만 사용 */
+            border: 1px dashed rgba(0, 0, 255, 0.3);
+            background-color: rgba(200, 200, 255, 0.1);
+            margin: 0 5px;
         }
         h1 { 
             font-family: 'Pretendard', sans-serif;
@@ -282,9 +297,16 @@
                     // 동적 스타일 적용 (고정 너비와 높이 컨테이너 사용)
                     textContentElement.innerHTML = `
                         <div class="text-row">
-                            <h2 style="font-size: ${fontSize}px;">
-                                ${data.item.text}'s<span class="text-line-gap"></span>${data.item.text}'s
-                            </h2>
+                            <div class="text-item">
+                                <h2 style="font-size: ${fontSize}px;">
+                                    ${data.item.text}'s
+                                </h2>
+                            </div>
+                            <div class="text-item">
+                                <h2 style="font-size: ${fontSize}px;">
+                                    ${data.item.text}'s
+                                </h2>
+                            </div>
                         </div>
                     `;
                     
