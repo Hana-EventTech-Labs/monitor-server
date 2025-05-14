@@ -65,6 +65,11 @@
             color: #000000;
             white-space: pre-line;
         }
+        /* 첫 번째 줄과 두 번째 줄 사이의 간격 설정 */
+        .text-line-gap {
+            display: block;
+            height: 20px; /* 원하는 간격 크기를 설정하세요 */
+        }
         p { 
             margin: 5px 0; 
             font-size: 1.2rem;
@@ -110,7 +115,7 @@
             }
             
             // 새 SSE 연결 생성
-            eventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
+            const newEventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
             
             // 15분마다 핑을 보내 연결 유지 (크롬 20분 타임아웃 방지)
             pingInterval = setInterval(() => {
@@ -121,7 +126,7 @@
                     .catch(err => console.log('핑 요청 실패:', err));
             }, 900000); // 15분(900,000ms)
             
-            return eventSource;
+            return newEventSource;
         }
         
         document.addEventListener('DOMContentLoaded', function() {
@@ -141,13 +146,14 @@
             
             let timerInterval;
             
-            eventSource.onmessage = function(event) {
+            // 메시지 핸들러 함수를 바깥으로 분리
+            function handleMessage(event) {
                 const data = JSON.parse(event.data);
                 
                 // 텍스트 콘텐츠만 업데이트
                 if (data.item) {
                     textContentElement.innerHTML = `
-                        <h2>${data.item.text}'s<br><br>${data.item.text}'s</h2>
+                        <h2>${data.item.text}'s<span class="text-line-gap"></span>${data.item.text}'s</h2>
                     `;
                     
                     // 타이머 재설정
@@ -174,33 +180,33 @@
                     clearInterval(timerInterval);
                     timerProgressElement.style.width = '0%';
                 }
-            };
+            }
             
-            eventSource.onerror = function(error) {
+            // 오류 핸들러 함수를 바깥으로 분리
+            function handleError(error) {
                 console.error('SSE Error:', error);
                 
                 // 연결 오류 발생 시에만 새로고침하도록 수정
                 // 크롬에서 SSE 연결이 약 20분마다 자동으로 끊기는 문제를 방지하기 위해
                 // 연결이 끊기면 즉시 재연결 시도
-                const reconnect = () => {
-                    console.log('SSE 연결 재시도 중...');
-                    
-                    // 새 EventSource 설정 (페이지 새로고침 대신)
-                    eventSource = setupEventSource();
-                    
-                    // 이벤트 핸들러 다시 연결
-                    setupEventHandlers(eventSource);
-                };
-                
-                // 즉시 재연결 시도
                 reconnect();
-            };
-            
-            // 이벤트 핸들러 설정 함수
-            function setupEventHandlers(source) {
-                source.onmessage = eventSource.onmessage;
-                source.onerror = eventSource.onerror;
             }
+            
+            // 재연결 함수
+            function reconnect() {
+                console.log('SSE 연결 재시도 중...');
+                
+                // 새 EventSource 설정 (페이지 새로고침 대신)
+                eventSource = setupEventSource();
+                
+                // 이벤트 핸들러 다시 연결
+                eventSource.onmessage = handleMessage;
+                eventSource.onerror = handleError;
+            }
+            
+            // 초기 이벤트 핸들러 설정
+            eventSource.onmessage = handleMessage;
+            eventSource.onerror = handleError;
         });
     </script>
 </head>
