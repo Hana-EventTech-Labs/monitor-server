@@ -180,8 +180,8 @@
                     const text = data.item.text;
                     let fontSize = 56; // 기본 폰트 크기 (px)
                     
-                    // 컨테이너 너비의 약 60%를 최대 너비로 설정 (70%에서 60%로 변경)
-                    const containerWidth = textContentElement.offsetWidth * 0.6;
+                    // 컨테이너 너비의 약 55%를 최대 너비로 설정 (60%에서 55%로 변경)
+                    const containerWidth = textContentElement.offsetWidth * 0.55;
                     
                     // 기본 폰트 크기로 텍스트 너비 측정 (양쪽 's 포함)
                     let textWidth = getTextWidth(text + "'s" + text + "'s", fontSize);
@@ -190,15 +190,17 @@
                     if (textWidth > containerWidth) {
                         // 너비 비율에 따라 폰트 크기 조절
                         const ratio = containerWidth / textWidth;
-                        // 더 작은 폰트 크기 허용 (최소값 12px로 변경)
-                        fontSize = Math.max(12, Math.floor(fontSize * ratio * 0.9)); // 추가 안전 마진 10%
+                        // 더 작은 폰트 크기 허용 (최소값 10px로 변경)
+                        fontSize = Math.max(10, Math.floor(fontSize * ratio * 0.85)); // 추가 안전 마진 15%
                     }
                     
                     // 텍스트 길이에 따른 추가 축소
-                    if (text.length > 20) {
-                        fontSize = Math.max(12, fontSize * 0.85); // 15% 추가 축소
-                    } else if (text.length > 10) {
-                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소
+                    if (text.length > 25) {
+                        fontSize = Math.max(10, fontSize * 0.75); // 25% 추가 축소
+                    } else if (text.length > 15) {
+                        fontSize = Math.max(10, fontSize * 0.8); // 20% 추가 축소
+                    } else if (text.length > 8) {
+                        fontSize = Math.max(10, fontSize * 0.85); // 15% 추가 축소
                     }
                     
                     // 대문자 비율 계산
@@ -206,8 +208,24 @@
                     const uppercaseRatio = uppercaseCount / text.length;
                     
                     // 대문자 비율이 높으면 추가 축소
-                    if (uppercaseRatio > 0.5 && text.length > 5) {
-                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소
+                    if (uppercaseRatio > 0.7) {
+                        fontSize = Math.max(10, fontSize * 0.8); // 20% 추가 축소
+                    } else if (uppercaseRatio > 0.4) {
+                        fontSize = Math.max(10, fontSize * 0.85); // 15% 추가 축소
+                    }
+                    
+                    // 특수 문자나 숫자가 많은 경우 추가 축소
+                    const specialCharsCount = (text.match(/[^a-zA-Z\s]/g) || []).length;
+                    const specialCharRatio = specialCharsCount / text.length;
+                    
+                    if (specialCharRatio > 0.3) {
+                        fontSize = Math.max(10, fontSize * 0.9); // 10% 추가 축소
+                    }
+                    
+                    // 단어 수 확인
+                    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+                    if (wordCount > 3) {
+                        fontSize = Math.max(10, fontSize * 0.9); // 10% 추가 축소
                     }
                     
                     // 간격 높이 계산: 40 + 56 - fontSize
