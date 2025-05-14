@@ -113,18 +113,49 @@ async def get_items_to_process(threshold_time: datetime.datetime):
         
         conn = await get_db_connection()
         async with conn.cursor() as cur:
+            # 트랜잭션 시작 - FOR UPDATE를 사용하여 다른 프로세스가 동일한 행을 선택하지 않도록 함
+            await conn.begin()
+            
             query = """
                 SELECT no, text, adr, update_time -- update_time 컬럼 추가
                 FROM {} 
                 WHERE state = 0 AND update_time < %s
                 ORDER BY update_time ASC
+                FOR UPDATE
             """.format(table_name)
             
             await cur.execute(query, (threshold_time,))
             items = await cur.fetchall()
+            
+            # 항목을 즉시 처리 중으로 표시 (임시 상태 -1)
+            # 이렇게 하면 다른 워커가 동일한 항목을 처리하지 않음
+            if items:
+                item_ids = [item['no'] for item in items]
+                placeholders = ', '.join(['%s'] * len(item_ids))
+                update_query = f"""
+                    UPDATE {table_name}
+                    SET state = -1
+                    WHERE no IN ({placeholders}) AND state = 0
+                """
+                await cur.execute(update_query, item_ids)
+                
+                # 실제로 업데이트된 항목만 가져오기
+                await cur.execute(f"""
+                    SELECT no, text, adr, update_time
+                    FROM {table_name}
+                    WHERE no IN ({placeholders}) AND state = -1
+                """, item_ids)
+                items = await cur.fetchall()
+            
+            await conn.commit()
             return items
     except Exception as e:
         logger.error(f"Error fetching items to process: {e}")
+        if conn:
+            try:
+                await conn.rollback()
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback: {rollback_error}")
         raise
     finally:
         if conn: await DB_POOL.release(conn)
@@ -139,20 +170,55 @@ async def mark_item_processed_and_assign_monitor(item_no: int, assigned_monitor_
         
         conn = await get_db_connection()
         async with conn.cursor() as cur:
+            # 트랜잭션 시작
+            await conn.begin()
+            
+            # 먼저 현재 상태 확인 (이미 처리된 항목인지 확인)
+            check_query = f"SELECT state FROM {table_name} WHERE no = %s FOR UPDATE"
+            await cur.execute(check_query, (item_no,))
+            result = await cur.fetchone()
+            
+            if not result:
+                logger.warning(f"Item {item_no} not found in database")
+                await conn.rollback()
+                return False
+            
+            current_state = result['state']
+            if current_state == 1:
+                # 이미 처리된 항목
+                logger.warning(f"Item {item_no} already processed (state=1)")
+                await conn.rollback()
+                return False
+            
             now = datetime.datetime.now()
             # no 컬럼이 INT이므로 %s로 바인딩할 때 정수 그대로 전달
             query = """
                 UPDATE {} 
                 SET state = 1, get_time = %s, adr = %s
-                WHERE no = %s
+                WHERE no = %s AND (state = 0 OR state = -1)
             """.format(table_name)
             
             await cur.execute(query, (now, assigned_monitor_id, item_no)) # item_no는 이제 int
+            
+            # 실제로 업데이트된 행 수 확인
+            rows_affected = cur.rowcount
+            
+            if rows_affected == 0:
+                logger.warning(f"No rows updated for item {item_no} - may have been processed by another worker")
+                await conn.rollback()
+                return False
+            
             await conn.commit()
             logger.info(f"Marked item '{item_no}' as processed and assigned to monitor {assigned_monitor_id}.")
+            return True
+            
     except Exception as e:
         logger.error(f"Error updating item state for '{item_no}': {e}")
-        if conn: await conn.rollback()
+        if conn: 
+            try:
+                await conn.rollback()
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback: {rollback_error}")
         raise
     finally:
         if conn: await DB_POOL.release(conn)

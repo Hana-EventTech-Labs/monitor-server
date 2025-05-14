@@ -26,6 +26,11 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
     check_count = 0
     last_heartbeat_time = datetime.datetime.now()
     total_items_processed = 0
+    
+    # 이미 처리한 항목의 ID를 추적하기 위한 세트
+    recently_processed_items = set()
+    # 세트 크기 제한 (메모리 사용 제한)
+    MAX_RECENT_ITEMS = 1000
 
     while True:
         try:
@@ -58,6 +63,12 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
             # 조회된 각 항목에 대해 순환적으로 모니터 ID 할당 및 DB 업데이트
             for item in items_to_process:
                 item_no = item["no"]
+                
+                # 이미 최근에 처리한 항목이면 건너뛰기
+                if item_no in recently_processed_items:
+                    logger.info(f"Skipping already processed item '{item_no}' (duplicate detection)")
+                    continue
+                
                 item_update_time = item["update_time"]
                 item_text = item["text"] # text는 여기서 직접 사용되진 않지만 조회 결과에 포함됨
 
@@ -70,7 +81,19 @@ async def check_and_assign_data_worker(): # 함수 이름 변경 (전송 -> 할�
 
                 try:
                     # 데이터 처리 완료 및 모니터 ID 할당 상태로 DB 업데이트
-                    await mark_item_processed_and_assign_monitor(item_no, current_monitor_id) # <--- DB 업데이트 함수 호출
+                    success = await mark_item_processed_and_assign_monitor(item_no, current_monitor_id) # <--- DB 업데이트 함수 호출
+                    
+                    if not success:
+                        logger.warning(f"Item {item_no} could not be processed - skipping")
+                        continue
+                    
+                    # 처리 성공 시 최근 처리 항목 목록에 추가
+                    recently_processed_items.add(item_no)
+                    # 세트 크기 제한
+                    if len(recently_processed_items) > MAX_RECENT_ITEMS:
+                        # 가장 오래된 항목 제거 (세트에서는 순서가 없으므로 아무 항목이나 제거)
+                        recently_processed_items.pop()
+                    
                     total_items_processed += 1
                     logger.info(f"✅ Successfully assigned item '{item_no}' to monitor {current_monitor_id}")
 
