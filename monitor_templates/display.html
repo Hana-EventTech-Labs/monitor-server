@@ -178,7 +178,7 @@
                 if (data.item) {
                     // 텍스트 너비에 따라 폰트 크기 조절
                     const text = data.item.text;
-                    let fontSize = 56; // 기본 폰트 크기 (px) - 56에서 60으로 증가
+                    let fontSize = 56; // 기본 폰트 크기 (px)
                     
                     // 컨테이너 너비의 약 58%를 최대 너비로 설정 (55%에서 58%로 변경)
                     const containerWidth = textContentElement.offsetWidth * 0.58;
@@ -203,15 +203,26 @@
                         fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (15%에서 완화)
                     }
                     
-                    // 대문자 비율 계산
+                    // 대문자/소문자 비율 계산
                     const uppercaseCount = (text.match(/[A-Z]/g) || []).length;
+                    const lowercaseCount = (text.match(/[a-z]/g) || []).length;
                     const uppercaseRatio = uppercaseCount / text.length;
+                    const lowercaseRatio = lowercaseCount / text.length;
                     
                     // 대문자 비율이 높으면 추가 축소 - 축소 비율 완화
                     if (uppercaseRatio > 0.7) {
                         fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소 (20%에서 완화)
                     } else if (uppercaseRatio > 0.4) {
                         fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소 (15%에서 완화)
+                    }
+                    
+                    // 소문자 비율이 높으면 추가 축소 (새로 추가)
+                    if (lowercaseRatio > 0.7 && text.length > 3) {
+                        fontSize = Math.max(12, fontSize * 0.85); // 15% 추가 축소
+                    } else if (lowercaseRatio > 0.5 && text.length > 3) {
+                        fontSize = Math.max(12, fontSize * 0.9); // 10% 추가 축소
+                    } else if (lowercaseRatio > 0.3 && text.length > 3) {
+                        fontSize = Math.max(12, fontSize * 0.95); // 5% 추가 축소
                     }
                     
                     // 특수 문자나 숫자가 많은 경우 추가 축소 - 축소 비율 완화
@@ -229,7 +240,15 @@
                     }
                     
                     // 최종 폰트 크기 계산 후 1.2배 증가 (전체적으로 크기 증가)
-                    fontSize = Math.min(60, Math.floor(fontSize * 1.2));
+                    // 소문자가 많은 경우 증가율 감소 (새로 추가)
+                    let sizeMultiplier = 1.2;
+                    if (lowercaseRatio > 0.6) {
+                        sizeMultiplier = 1.1; // 소문자 비율이 높으면 증가율 감소
+                    } else if (lowercaseRatio > 0.4) {
+                        sizeMultiplier = 1.15; // 소문자 비율이 중간이면 증가율 약간 감소
+                    }
+                    
+                    fontSize = Math.min(60, Math.floor(fontSize * sizeMultiplier));
                     
                     // 간격 높이 계산: 40 + 56 - fontSize
                     const gapHeight = 40 + 56 - fontSize;
