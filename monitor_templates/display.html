@@ -58,15 +58,15 @@
         }
         h1 { 
             font-family: 'Pretendard', sans-serif;
-            font-size: 3.5rem; 
+            font-size: 56px; /* 3.5rem을 px로 변환 */
             margin: 0 0 15px 0;
             color: #000000;
             font-weight: 600;
         }
         h2 { 
             font-family: 'Pretendard', sans-serif;
-            font-size: 3.4rem; 
-            margin: 14px 0 22px 0;
+            font-size: 56px; /* 3.5rem을 px로 변환 */
+            margin: 14px 0 23px 0;
             color: #000000;
             white-space: pre-line;
             font-weight: 500;
@@ -74,7 +74,7 @@
         /* 첫 번째 줄과 두 번째 줄 사이의 간격 설정 */
         .text-line-gap {
             display: block;
-            height: 41px; /* 원하는 간격 크기를 설정하세요 */
+            height: 40px; /* 원하는 간격 크기를 설정하세요 */
         }
         p { 
             font-family: 'Pretendard', sans-serif;
@@ -161,17 +161,17 @@
                 if (data.item) {
                     // 텍스트 길이에 따라 폰트 크기 조절
                     const text = data.item.text;
-                    let fontSize = '3.5rem'; // 기본 폰트 크기 3.4rem에서 3.5rem으로 변경
+                    let fontSize = '56px'; // 기본 폰트 크기 3.5rem을 px로 변환
                     
                     // 텍스트 길이에 따른 폰트 크기 조절 - 비율 재조정
                     if (text.length > 5 && text.length <= 10) {
-                        fontSize = '2.9rem';
+                        fontSize = '46px'; // 2.9rem을 px로 변환
                     } else if (text.length > 10 && text.length <= 15) {
-                        fontSize = '2.3rem';
+                        fontSize = '37px'; // 2.3rem을 px로 변환
                     } else if (text.length > 15 && text.length <= 20) {
-                        fontSize = '1.7rem';
+                        fontSize = '27px'; // 1.7rem을 px로 변환
                     } else if (text.length > 20) {
-                        fontSize = '1.1rem';
+                        fontSize = '18px'; // 1.1rem을 px로 변환
                     }
                     
                     // 동적 스타일 적용
