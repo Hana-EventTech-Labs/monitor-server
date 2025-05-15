@@ -30,12 +30,14 @@ LAST_DISPLAYED_ITEMS: Dict[str, int] = {}  # 모니터별 마지막으로 표시
 
 # 모니터별 로그 메시지 표시 횟수를 제한하기 위한 변수 추가
 LOG_COUNTERS: Dict[str, int] = {}  # 모니터별 로그 카운터
+NO_ITEMS_LOG_COUNTERS: Dict[str, int] = {}  # 새 항목이 없을 때의 로그 카운터
 
 # 항목 표시 시간(초)
 ITEM_DISPLAY_DURATION = 20  # 각 항목이 표시되는 시간(초)
 NO_NEW_ITEMS_DISPLAY_DURATION = 5  # 새 항목이 없을 때 표시 시간(초)
 SSE_UPDATE_INTERVAL = 1  # SSE 업데이트 간격(초)
 LOG_INTERVAL = 120  # 로그 출력 간격(초) - 120초로 증가 (60초에서 120초로 변경)
+NO_ITEMS_LOG_INTERVAL = 600  # 새 항목이 없을 때 로그 출력 간격(초) - 10분 간격
 
 # 모듈 초기화 함수
 async def initialize_monitor_state():
@@ -167,6 +169,10 @@ async def stream_monitor_updates(monitor_id: int):
     if monitor_id_str not in MONITOR_QUEUES:
         await update_monitor_queue(monitor_id_str)
     
+    # 새 항목 없음 로그 카운터 초기화
+    if monitor_id_str not in NO_ITEMS_LOG_COUNTERS:
+        NO_ITEMS_LOG_COUNTERS[monitor_id_str] = 0
+    
     async def event_generator():
         while True:
             current_time = time.time()
@@ -196,10 +202,21 @@ async def stream_monitor_updates(monitor_id: int):
                 if not MONITOR_QUEUES.get(monitor_id_str, []) and monitor_id_str in CURRENT_ITEMS and CURRENT_ITEMS[monitor_id_str]:
                     # 표시 시간만 리셋
                     DISPLAY_TIMES[monitor_id_str] = current_time
-                    logger.info(f"No new items for monitor {monitor_id_str}, continuing to display current item {CURRENT_ITEMS[monitor_id_str]['no']} for {NO_NEW_ITEMS_DISPLAY_DURATION} seconds")
+                    
+                    # 새 항목이 없을 때의 로그 카운터 증가
+                    NO_ITEMS_LOG_COUNTERS[monitor_id_str] += 1
+                    
+                    # 로그 출력 여부 결정 (초기 2회와 NO_ITEMS_LOG_INTERVAL 간격으로만 출력)
+                    should_log_no_items = (NO_ITEMS_LOG_COUNTERS[monitor_id_str] <= 2 or 
+                                         NO_ITEMS_LOG_COUNTERS[monitor_id_str] % NO_ITEMS_LOG_INTERVAL == 0)
+                    
+                    if should_log_no_items:
+                        logger.info(f"No new items for monitor {monitor_id_str}, continuing to display current item {CURRENT_ITEMS[monitor_id_str]['no']} for {NO_NEW_ITEMS_DISPLAY_DURATION} seconds")
                 else:
                     # 대기열에 항목이 있으면 현재 항목 초기화 (다음 항목을 표시하기 위해)
                     CURRENT_ITEMS[monitor_id_str] = None
+                    # 새 항목이 생겼으므로 로그 카운터 리셋
+                    NO_ITEMS_LOG_COUNTERS[monitor_id_str] = 0
             
             # 표시할 항목이 없으면 다음 항목 가져오기
             if monitor_id_str not in CURRENT_ITEMS or CURRENT_ITEMS[monitor_id_str] is None:
@@ -222,6 +239,8 @@ async def stream_monitor_updates(monitor_id: int):
                 if next_item:
                     CURRENT_ITEMS[monitor_id_str] = next_item
                     DISPLAY_TIMES[monitor_id_str] = current_time
+                    # 새 항목이 생겼으므로 로그 카운터 리셋
+                    NO_ITEMS_LOG_COUNTERS[monitor_id_str] = 0
                     
                     # 현재 항목을 표시할 때 즉시 마지막 표시 항목으로 기록
                     if 'no' in next_item:
