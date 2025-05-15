@@ -1,0 +1,14 @@
+[project]
+name = "pspyside"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cffi>=1.17.1",
+    "pyinstaller>=6.13.0",
+    "pyside6>=6.9.0",
+    "pywin32>=310",
+    "requests>=2.32.3",
+]
+
