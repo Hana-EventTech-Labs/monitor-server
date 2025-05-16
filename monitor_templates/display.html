@@ -16,14 +16,11 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
-            border: 3px solid red; /* 개발용 테두리 */
         }
         .main-container {
             display: flex;
             flex-direction: column;
             height: 100%;
-            border: 2px solid blue; /* 개발용 테두리 */
-            background-color: rgba(0, 0, 255, 0.05); /* 개발용 배경색 */
         }
         .video-container {
             flex: 1;
@@ -31,7 +28,6 @@
             position: relative;
             background-color: #000;
             overflow: hidden;
-            border: 2px solid green; /* 개발용 테두리 */
         }
         video {
             position: absolute;
@@ -40,7 +36,6 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            border: 1px dashed yellow; /* 개발용 테두리 */
         }
         .text-overlay {
             position: absolute;
@@ -54,8 +49,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            border: 2px solid magenta; /* 개발용 테두리 */
-            background-color: rgba(255, 0, 255, 0.05); /* 개발용 배경색 */
         }
         .text-container {
             width: 90%;
@@ -65,8 +58,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            border: 2px solid cyan; /* 개발용 테두리 */
-            background-color: rgba(0, 255, 255, 0.1); /* 개발용 배경색 */
         }
         .text-row {
             width: 30%;
@@ -111,8 +102,6 @@
             padding: 0;
             color: #000000;
             font-weight: 600;
-            border: 1px solid purple; /* 개발용 테두리 */
-            background-color: rgba(128, 0, 128, 0.1); /* 개발용 배경색 */
         }
         h2 { 
             font-family: 'Pretendard', sans-serif;
@@ -130,22 +119,17 @@
             justify-content: center;
             overflow: hidden; /* 내용이 넘치면 숨김 */
             text-overflow: ellipsis; /* 넘치는 텍스트는 ...으로 표시 */
-            border: 1px solid green; /* 개발용 테두리 */
-            background-color: rgba(0, 128, 0, 0.1); /* 개발용 배경색 */
         }
         /* 첫 번째 줄과 두 번째 줄 사이의 간격 설정 */
         .text-line-gap {
             display: block;
             height: 0;
-            border: 1px dotted gray; /* 개발용 테두리 */
         }
         p { 
             font-family: 'Pretendard', sans-serif;
             margin: 5px 0; 
             font-size: 1.2rem;
             color: #000000;
-            border: 1px solid brown; /* 개발용 테두리 */
-            background-color: rgba(165, 42, 42, 0.1); /* 개발용 배경색 */
         }
         .monitor-info {
             position: fixed;
@@ -155,9 +139,6 @@
             color: #ffffff;
             z-index: 20;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-            border: 1px solid white; /* 개발용 테두리 */
-            background-color: rgba(0, 0, 0, 0.3); /* 개발용 배경색 */
-            padding: 2px 5px; /* 가독성을 위한 패딩 */
         }
     </style>
     <script>
