@@ -143,19 +143,6 @@
             z-index: 20;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
         }
-        .timer-bar {
-            width: 50%;
-            height: 5px;
-            background-color: rgba(85, 85, 85, 0.5);
-            position: relative;
-            margin-top: 20px;
-        }
-        .timer-progress {
-            height: 100%;
-            background-color: rgba(76, 175, 80, 0.7);
-            width: 0%;
-            transition: width 1s linear;
-        }
     </style>
     <script>
         // SSE를 통한 실시간 업데이트
@@ -192,7 +179,6 @@
             // SSE 연결 설정
             eventSource = setupEventSource();
             const textContentElement = document.getElementById('text-content');
-            const timerProgressElement = document.getElementById('timer-progress');
             
             // 텍스트 너비 측정을 위한 임시 요소 생성
             const measureElement = document.createElement('div');
@@ -219,8 +205,6 @@
             videoElement.addEventListener('ended', function() {
                 videoElement.play();
             });
-            
-            let timerInterval;
             
             // 메시지 핸들러 함수를 바깥으로 분리
             function handleMessage(event) {
@@ -327,30 +311,8 @@
                             </div>
                         </div>
                     `;
-                    
-                    // 타이머 재설정
-                    clearInterval(timerInterval);
-                    timerProgressElement.style.width = '0%';
-                    
-                    // 타이머 시작
-                    let secondsLeft = data.remaining_time;
-                    const totalSeconds = 20; // 표시 시간(초)
-                    
-                    timerProgressElement.style.width = ((totalSeconds - secondsLeft) / totalSeconds * 100) + '%';
-                    
-                    timerInterval = setInterval(() => {
-                        secondsLeft -= 1;
-                        const progressPercentage = ((totalSeconds - secondsLeft) / totalSeconds * 100);
-                        timerProgressElement.style.width = progressPercentage + '%';
-                        
-                        if (secondsLeft <= 0) {
-                            clearInterval(timerInterval);
-                        }
-                    }, 1000);
                 } else {
                     textContentElement.innerHTML = "<h1> </h1>";
-                    clearInterval(timerInterval);
-                    timerProgressElement.style.width = '0%';
                 }
             }
             
@@ -393,9 +355,6 @@
             <div class="text-overlay">
                 <div id="text-content" class="text-container">
                     <h1>대기 중...</h1>
-                </div>
-                <div class="timer-bar">
-                    <div id="timer-progress" class="timer-progress"></div>
                 </div>
             </div>
         </div>
