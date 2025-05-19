@@ -198,6 +198,10 @@
             const videoElement = document.getElementById('background-video');
             videoElement.volume = 0.5; // 볼륨 50%로 설정
             
+            videoElement.play().catch((e) => {
+                console.warn('Autoplay block?', e);
+            });
+            
             // 비디오가 끝나면 다시 재생
             videoElement.addEventListener('ended', function() {
                 videoElement.play();
@@ -345,7 +349,7 @@
     <div class="main-container">
         <div class="video-container">
             <!-- 고정된 비디오 - static/videos 폴더에 video.mp4 파일을 업로드해야 함 -->
-            <video id="background-video" autoplay loop muted>
+            <video id="background-video" autoplay loop muted playsinline>
                 <source src="/static/videos/videoy.mp4" type="video/mp4">
                 브라우저가 비디오 태그를 지원하지 않습니다.
             </video>
