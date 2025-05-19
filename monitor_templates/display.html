@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Monitor {{ monitor_id }} Display</title>
+    <title>Monitor Display</title>
     <meta charset="utf-8">
     <!-- Pretendard 폰트 추가 -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -145,6 +145,8 @@
         // SSE를 통한 실시간 업데이트
         let eventSource; // 전역 변수로 선언
         let pingInterval; // 핑 인터벌 변수
+        let videoPlaybackAttempts = 0; // 비디오 재생 시도 횟수
+        let videoRetryInterval; // 비디오 재생 재시도 인터벌
         
         // SSE 연결 설정 함수
         function setupEventSource() {
@@ -158,14 +160,14 @@
             }
             
             // 새 SSE 연결 생성
-            const newEventSource = new EventSource('/monitor/{{ monitor_id }}/stream');
+            const newEventSource = new EventSource('/monitor/1/stream');
             
             // 15분마다 핑을 보내 연결 유지 (크롬 20분 타임아웃 방지)
             pingInterval = setInterval(() => {
                 console.log('핑: SSE 연결 유지 중...');
                 
                 // 서버에 핑 요청을 보내거나 더미 요청을 보내 연결 유지
-                fetch('/monitor/{{ monitor_id }}/ping', { method: 'GET' })
+                fetch('/monitor/1/ping', { method: 'GET' })
                     .catch(err => console.log('핑 요청 실패:', err));
             }, 900000); // 15분(900,000ms)
             
@@ -196,18 +198,99 @@
             
             // 비디오 요소 초기화 및 자동 재생
             const videoElement = document.getElementById('background-video');
-            videoElement.volume = 0.5; // 볼륨 50%로 설정
             
-            videoElement.play().catch((e) => {
-                console.warn('Autoplay block?', e);
+            // 비디오 재생 최적화
+            videoElement.preload = 'auto'; // 비디오 미리 로드
+            
+            // 비디오 버퍼링 관련 이벤트 리스너 추가
+            videoElement.addEventListener('waiting', function() {
+                console.log('비디오 버퍼링 중...');
             });
             
-            // 비디오가 끝나면 다시 재생
+            // 비디오 에러 처리
+            videoElement.addEventListener('error', function(e) {
+                console.error('비디오 로딩 오류:', e);
+                console.log('비디오 소스 URL:', videoElement.querySelector('source').src);
+                console.log('비디오 오류 코드:', videoElement.error ? videoElement.error.code : '알 수 없음');
+                // 오류 발생 시 재시도
+                tryPlayVideo();
+            });
+            
+            // 비디오가 멈추는 경우 처리
+            videoElement.addEventListener('pause', function() {
+                if (!videoElement.ended) {
+                    console.log('비디오가 일시 정지됨, 재생 시도 중...');
+                    
+                    // 일시 정지된 경우 1초 후 다시 재생 시도
+                    setTimeout(function() {
+                        videoElement.play().catch(function(e) {
+                            console.error('자동 재생 재시도 실패:', e);
+                        });
+                    }, 1000);
+                }
+            });
+            
+            // 비디오 재생 성공 시 처리
+            videoElement.addEventListener('playing', function() {
+                console.log('비디오 재생 중...');
+                videoPlaybackAttempts = 0; // 성공적으로 재생되면 시도 횟수 초기화
+                
+                // 기존 재시도 인터벌 중지
+                if (videoRetryInterval) {
+                    clearInterval(videoRetryInterval);
+                    videoRetryInterval = null;
+                }
+            });
+            
+            // 비디오 재생 완료 처리
             videoElement.addEventListener('ended', function() {
-                videoElement.play();
+                console.log('비디오 재생 완료, 다시 시작...');
+                videoElement.currentTime = 0; // 처음으로 재설정
+                
+                // 재생 시도 (실패할 경우 에러 처리)
+                videoElement.play().catch(function(e) {
+                    console.error('루프 재생 시도 실패:', e);
+                    tryPlayVideo(); // 재생 실패 시 재시도
+                });
             });
             
-            // 메시지 핸들러 함수를 바깥으로 분리
+            // 비디오 재생 시도 함수
+            function tryPlayVideo() {
+                videoPlaybackAttempts++;
+                console.log(`비디오 재생 시도 ${videoPlaybackAttempts}/5...`);
+                
+                if (videoPlaybackAttempts <= 5) {
+                    // 점점 더 큰 지연 시간으로 재시도 (300ms, 600ms, 900ms, 1200ms, 1500ms)
+                    setTimeout(function() {
+                        videoElement.play().catch(function(e) {
+                            console.error(`재생 시도 ${videoPlaybackAttempts} 실패:`, e);
+                            if (videoPlaybackAttempts < 5) {
+                                tryPlayVideo(); // 실패하면 다시 시도
+                            }
+                        });
+                    }, videoPlaybackAttempts * 300);
+                } else {
+                    console.log('최대 시도 횟수 초과. 주기적인 확인으로 전환합니다.');
+                    
+                    // 10초마다 재생 상태 확인하여 필요하면 다시 시도
+                    if (!videoRetryInterval) {
+                        videoRetryInterval = setInterval(function() {
+                            if (videoElement.paused && !videoElement.ended) {
+                                console.log('비디오가 멈춤 상태 감지, 주기적 재생 시도...');
+                                videoElement.play().catch(e => console.error('주기적 재생 시도 실패:', e));
+                            }
+                        }, 10000); // 10초마다 확인
+                    }
+                }
+            }
+            
+            // 비디오 재생 시작
+            videoElement.play().catch(function(e) {
+                console.warn('초기 자동 재생 차단됨:', e);
+                tryPlayVideo(); // 초기 재생 실패 시 재시도
+            });
+            
+            // 메시지 핸들러 함수
             function handleMessage(event) {
                 const data = JSON.parse(event.data);
                 
@@ -317,7 +400,7 @@
                 }
             }
             
-            // 오류 핸들러 함수를 바깥으로 분리
+            // 오류 핸들러 함수
             function handleError(error) {
                 console.error('SSE Error:', error);
                 
@@ -342,6 +425,36 @@
             // 초기 이벤트 핸들러 설정
             eventSource.onmessage = handleMessage;
             eventSource.onerror = handleError;
+            
+            // 네트워크 상태 변화 감지
+            window.addEventListener('online', function() {
+                console.log('네트워크 연결됨, 비디오 재생 및 SSE 재연결 시도');
+                
+                // SSE 재연결
+                reconnect();
+                
+                // 비디오 재생 재시도
+                if (videoElement.paused) {
+                    tryPlayVideo();
+                }
+            });
+            
+            // 페이지 가시성 변경 감지 (탭 전환, 화면 꺼짐 등)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    console.log('페이지가 다시 보여짐, 비디오 및 SSE 상태 확인');
+                    
+                    // 비디오가 멈춘 경우 재생
+                    if (videoElement.paused && !videoElement.ended) {
+                        tryPlayVideo();
+                    }
+                    
+                    // SSE 연결 확인 (readyState가 2면 연결 종료 상태)
+                    if (eventSource.readyState === 2) {
+                        reconnect();
+                    }
+                }
+            });
         });
     </script>
 </head>
@@ -349,13 +462,13 @@
     <div class="main-container">
         <div class="video-container">
             <!-- 고정된 비디오 - static/videos 폴더에 video.mp4 파일을 업로드해야 함 -->
-            <video id="background-video" autoplay loop muted playsinline>
+            <video id="background-video" autoplay loop muted playsinline preload="auto">
                 <source src="/static/videos/videoy.mp4" type="video/mp4">
                 브라우저가 비디오 태그를 지원하지 않습니다.
             </video>
             <div class="text-overlay">
                 <div id="text-content" class="text-container">
-                    <h1>대기 중...</h1>
+                    <h1> </h1>
                 </div>
             </div>
         </div>
