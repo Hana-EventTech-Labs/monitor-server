@@ -74,7 +74,7 @@
             padding: 0;
             box-sizing: border-box;
             overflow: hidden;
-            gap: 45px;
+            gap: 20px;
         }
         .text-item {
             width: 100%;
@@ -387,7 +387,7 @@
                     let fontSize = 56; // 기본 폰트 크기 (px)
                     
                     // 컨테이너 너비의 약 58%를 최대 너비로 설정 (55%에서 58%로 변경)
-                    const containerWidth = textContentElement.offsetWidth * 0.58;
+                    const containerWidth = textContentElement.offsetWidth * 0.55;
                     
                     // 기본 폰트 크기로 텍스트 너비 측정 (양쪽 's 포함)
                     let textWidth = getTextWidth(text + "'s" + text + "'s", fontSize);
